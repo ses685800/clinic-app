@@ -132,6 +132,8 @@ export default function App() {
   const [sajuRaw, setSajuRaw] = useState("");
   const [questionnaire, setQuestionnaire] = useState({ sleep:"", digestion:"", constipation:"", edema:"", stress:"", eating:"", exercise:"", note:"" });
   const [ohengHealth, setOhengHealth] = useState({ cold:"", heat:"", fatigue:"", pain:"", circulation:"" });
+  const [consent, setConsent] = useState({ privacy:false, health:false, signature:"" });
+  const [followUp, setFollowUp] = useState({ nextVisit:"", channel:"", note:"" });
   const [useInbody, setUseInbody] = useState(true);
   const [inbody, setInbody] = useState({ weight:"", muscle:"", water:"", fatKg:"", fatPct:"", phaseAngle:"" });
   const [inbodyHistory, setInbodyHistory] = useState([]);
@@ -184,6 +186,8 @@ export default function App() {
     if (!name.trim()) return alert("이름을 입력해 주세요.");
     if (!phone.trim()) return alert("전화번호를 입력해 주세요.");
     if (!parsedRes.ok) return alert(parsedRes.error);
+    if (!consent.privacy || !consent.health) return alert("개인정보/건강정보 수집 동의를 체크해 주세요.");
+    if (!consent.signature.trim()) return alert("동의 서명(성함)을 입력해 주세요.");
     setStep(2);
   }
 
@@ -195,6 +199,8 @@ export default function App() {
     setSajuRaw("");
     setQuestionnaire({ sleep:"", digestion:"", constipation:"", edema:"", stress:"", eating:"", exercise:"", note:"" });
     setOhengHealth({ cold:"", heat:"", fatigue:"", pain:"", circulation:"" });
+    setConsent({ privacy:false, health:false, signature:"" });
+    setFollowUp({ nextVisit:"", channel:"", note:"" });
     setUseInbody(true);
     setInbody({ weight:"", muscle:"", water:"", fatKg:"", fatPct:"", phaseAngle:"" });
   }
@@ -219,6 +225,8 @@ export default function App() {
       constitution: result.constitution,
       questionnaire,
       ohengHealth,
+      consent,
+      followUp,
       inbody: result.inbodyUsed ? inbody : null,
       recommendations: {
         program: result.program,
@@ -279,6 +287,33 @@ export default function App() {
           <div style={{marginTop:12}}><label style={{fontWeight:800}}>특이사항 메모</label><textarea value={questionnaire.note} onChange={(e)=>setQuestionnaire((q)=>({...q, note:e.target.value}))} style={{width:"100%", minHeight:90, padding:12, borderRadius:12, border:"1px solid #cbd5e1"}} /></div>
         </div>
 
+        <div style={{marginTop:16, padding:12, borderRadius:12, border:"1px solid #e2e8f0", background:"#f8fafc"}}>
+          <h3 style={{fontWeight:900}}>개인정보·건강정보 수집 동의</h3>
+          <div style={{marginTop:8, display:"grid", gap:8}}>
+            <label style={{fontWeight:700}}><input type="checkbox" checked={consent.privacy} onChange={(e)=>setConsent((v)=>({...v, privacy:e.target.checked}))} /> 개인정보 수집·이용 동의</label>
+            <label style={{fontWeight:700}}><input type="checkbox" checked={consent.health} onChange={(e)=>setConsent((v)=>({...v, health:e.target.checked}))} /> 건강정보 수집·상담 활용 동의</label>
+            <input value={consent.signature} onChange={(e)=>setConsent((v)=>({...v, signature:e.target.value}))} placeholder="동의 서명(고객 성함)" style={{padding:12, borderRadius:10, border:"1px solid #cbd5e1"}} />
+          </div>
+        </div>
+
+        <div style={{marginTop:16, padding:12, borderRadius:12, border:"1px solid #e2e8f0"}}>
+          <h3 style={{fontWeight:900}}>팔로업 일정</h3>
+          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:8}}>
+            <div>
+              <label style={{fontWeight:800}}>다음 방문일</label>
+              <input type="date" value={followUp.nextVisit} onChange={(e)=>setFollowUp((v)=>({...v, nextVisit:e.target.value}))} style={{width:"100%", padding:12, borderRadius:12, border:"1px solid #cbd5e1"}} />
+            </div>
+            <div>
+              <label style={{fontWeight:800}}>연락 채널</label>
+              <input value={followUp.channel} onChange={(e)=>setFollowUp((v)=>({...v, channel:e.target.value}))} placeholder="예: 전화/문자/카톡" style={{width:"100%", padding:12, borderRadius:12, border:"1px solid #cbd5e1"}} />
+            </div>
+          </div>
+          <div style={{marginTop:8}}>
+            <label style={{fontWeight:800}}>팔로업 메모</label>
+            <input value={followUp.note} onChange={(e)=>setFollowUp((v)=>({...v, note:e.target.value}))} placeholder="예: 2주 후 체수분 재측정" style={{width:"100%", padding:12, borderRadius:12, border:"1px solid #cbd5e1"}} />
+          </div>
+        </div>
+
         <button onClick={goStep2} style={{marginTop:16, width:"100%", padding:14, borderRadius:14, border:"none", background:"#ff6a00", color:"white", fontWeight:900, fontSize:18}}>다음(인바디 입력) →</button>
       </div>}
 
@@ -311,6 +346,24 @@ export default function App() {
         <div style={{marginTop:12, padding:12, borderRadius:12, border:"1px solid #e2e8f0"}}>
           <div style={{fontWeight:900}}>체질 자동 판정</div>
           <div style={{marginTop:8, fontWeight:800}}>부족: {result.constitution.weak.map((k)=>EL_LABEL[k]).join(", ")} / 과다: {result.constitution.strong.map((k)=>EL_LABEL[k]).join(", ")}</div>
+        </div>
+
+        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12}}>
+          <div style={{padding:12, border:"1px solid #e2e8f0", borderRadius:12}}>
+            <div style={{fontWeight:900}}>수집 동의 확인</div>
+            <div style={{marginTop:6, color:"#334155", fontWeight:700}}>
+              개인정보: {consent.privacy ? "동의" : "미동의"} / 건강정보: {consent.health ? "동의" : "미동의"}<br />
+              서명: {consent.signature || "-"}
+            </div>
+          </div>
+          <div style={{padding:12, border:"1px solid #e2e8f0", borderRadius:12}}>
+            <div style={{fontWeight:900}}>다음 팔로업</div>
+            <div style={{marginTop:6, color:"#334155", fontWeight:700}}>
+              방문일: {followUp.nextVisit || "미정"}<br />
+              채널: {followUp.channel || "미정"}<br />
+              메모: {followUp.note || "-"}
+            </div>
+          </div>
         </div>
 
         <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12}}>
