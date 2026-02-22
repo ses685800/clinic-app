@@ -200,6 +200,30 @@
         const [year, month, day, hour] = parsed;
         const sajuSummary = `사주: ${year.stemKor}${year.branchKor}년 · ${month.stemKor}${month.branchKor}월 · ${day.stemKor}${day.branchKor}일 · ${hour.stemKor}${hour.branchKor}시`;
 
+        const candidates = [weak[0], surveyAnalysis.target, inbodyAnalysis.target].filter(Boolean);
+        const priority = candidates.reduce((acc, k) => ((acc[k] = (acc[k] || 0) + 1), acc), {});
+        const primaryTarget = Object.keys(priority).sort((a,b)=>priority[b]-priority[a])[0] || weak[0] || 'earth';
+
+        const strategyByTarget = {
+          wood: ["간 해독 리듬(수면 23시 전) 유지", "목·견갑 스트레칭과 가벼운 유산소 병행", "음주·야식 빈도 주 1회 이하로 제한"],
+          fire: ["체온 상승 루틴(온열돔+호흡) 고정", "카페인 오후 2시 이후 제한", "수면 질 회복을 위해 취침 전 디지털 디톡스"],
+          earth: ["식사량 분할·천천히 씹기", "식후 15분 걷기 고정", "밀가루/야간 탄수 비중 줄여 대사 안정화"],
+          metal: ["호흡기·피부 건조 관리(수분/습도)", "아침 복식호흡 5분", "배변 리듬 유지를 위한 식이섬유 보강"],
+          water: ["하체 체온 유지(족욕/온열) 강화", "미지근한 수분 섭취 중심", "하체 근력 운동으로 부종/순환 관리"],
+        };
+
+        const foodByTarget = {
+          wood: ["도움: 녹색채소·신맛 소량", "주의: 과음·야식·기름진 안주"],
+          fire: ["도움: 비트·토마토·따뜻한 단백질", "주의: 과한 카페인·매운 야식"],
+          earth: ["도움: 단호박·양배추·잡곡", "주의: 냉샐러드 과다·밀가루"],
+          metal: ["도움: 도라지·배·무", "주의: 건조한 간식·흡연/미세먼지 노출"],
+          water: ["도움: 검은콩·해조류·생강", "주의: 냉음료·빙과·늦은 밤 탄수"],
+        };
+
+        const inbodySummary = inbodyAnalysis.used
+          ? (inbodyAnalysis.risks.length ? `인바디 위험요인(${inbodyAnalysis.risks.join(', ')}) 기준으로 ${EL_LABEL[inbodyAnalysis.target]} 관리 비중을 높입니다.` : "인바디상 큰 위험 신호는 없으나 유지 관리 중심으로 갑니다.")
+          : "인바디 미측정 상태이므로 문진·사주 중심으로 강도 조절합니다.";
+
         const sections = [
           {
             title: "1) 핵심 구조",
@@ -221,20 +245,20 @@
             items: surveyAnalysis.points.length ? surveyAnalysis.points : ["문진상 특이 상담 포인트 없음"]
           },
           {
-            title: "4) 인바디 상담 포인트",
-            items: inbodyAnalysis.points
+            title: "4) 고객 맞춤 관리 전략",
+            items: [`우선 타깃: ${EL_LABEL[primaryTarget]} (사주·문진·인바디 종합)`].concat(strategyByTarget[primaryTarget])
           },
           {
-            title: "5) 건강 관리 핵심 전략",
-            items: ["지속적 체온 유지 + 하체 근력 강화", "공복 고강도 유산소는 피하고 식후 걷기 중심", "카페인/냉음료 과다 제한, 미지근한 수분 섭취"],
+            title: "5) 인바디 반영 상담 전략",
+            items: [inbodySummary].concat(inbodyAnalysis.points)
           },
           {
-            title: "6) 결론",
-            items: ["사주 + 문진 + 인바디의 공통 취약 포인트를 우선순위로 관리하면 결과가 빨라집니다."],
+            title: "6) 고객 맞춤 식이 방향",
+            items: foodByTarget[primaryTarget]
           },
         ];
 
-        return { weak, strong, sajuSummary, sections };
+        return { weak, strong, sajuSummary, sections, primaryTarget };
       }
 
       function getPillarCards(parsed) {
@@ -291,7 +315,7 @@
           const ohengComment = buildOhengComment(parsed, counts, surveyAnalysis, inbodyAnalysis);
           const candidates = [ohengComment.weak[0], surveyAnalysis.target, inbodyAnalysis.target].filter(Boolean);
           const priority = candidates.reduce((acc, k) => ((acc[k] = (acc[k] || 0) + 1), acc), {});
-          const primaryTarget = Object.keys(priority).sort((a,b)=>priority[b]-priority[a])[0] || ohengComment.weak[0];
+          const primaryTarget = ohengComment.primaryTarget || Object.keys(priority).sort((a,b)=>priority[b]-priority[a])[0] || ohengComment.weak[0];
           const baseReco = RECO[primaryTarget] || RECO[ohengComment.weak[0]];
           const atomySuggestions = matchAtomySuggestions(baseReco.atomy, surveyAnalysis, inbodyAnalysis);
 
