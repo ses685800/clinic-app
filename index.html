@@ -558,7 +558,7 @@
               </div>
             </div>
 
-            <button onClick={goStep2} style={{marginTop:14, width:"100%", padding:12, border:"none", borderRadius:12, background:"#ff6a00", color:"white", fontWeight:900}}>다음(인바디 입력)</button>
+            <button onClick={goStep2} style={{marginTop:14, width:"100%", padding:12, border:"none", borderRadius:12, background:"#16a34a", color:"white", fontWeight:900}}>다음(인바디 입력)</button>
           </div>}
 
           {step===2 && <div style={{marginTop:16, background:"white", border:"1px solid #e2e8f0", borderRadius:16, padding:16}}>
@@ -570,7 +570,7 @@
             {useInbody && <div style={{display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginTop:10}}>{Object.keys(INBODY_KEYS).map((k) => <input key={k} type="number" value={inbody[k]} onChange={(e)=>setInbody((v)=>({...v,[k]:e.target.value}))} placeholder={INBODY_KEYS[k]} style={{padding:10, borderRadius:10, border:"1px solid #cbd5e1"}} />)}</div>}
             <div style={{display:"flex", gap:8, marginTop:12}}>
               <button onClick={()=>setStep(1)} style={{flex:1, padding:12}}>이전</button>
-              <button onClick={()=>setStep(3)} style={{flex:2, padding:12, background:"#ff6a00", color:"white", border:"none", borderRadius:12}}>분석 결과 보기</button>
+              <button onClick={()=>setStep(3)} style={{flex:2, padding:12, background:"#16a34a", color:"white", border:"none", borderRadius:12}}>분석 결과 보기</button>
             </div>
           </div>}
 
@@ -650,7 +650,7 @@
                 {Object.keys(INBODY_KEYS).slice(0,5).map((k)=><input key={k} type="number" value={revisitInbody[k]} onChange={(e)=>setRevisitInbody((v)=>({...v,[k]:e.target.value}))} placeholder={INBODY_KEYS[k]} style={{padding:10,borderRadius:8,border:"1px solid #cbd5e1"}} />)}
                 <input type="number" value={revisitInbody.phaseAngle} onChange={(e)=>setRevisitInbody((v)=>({...v,phaseAngle:e.target.value}))} placeholder={INBODY_KEYS.phaseAngle} style={{padding:10,borderRadius:8,border:"1px solid #cbd5e1"}} />
               </div>
-              <button onClick={addRevisitInbody} style={{marginTop:8,padding:"10px 12px",borderRadius:10,border:"none",background:"#0ea5e9",color:"white",fontWeight:800}}>재방문 인바디 그래프에 추가</button>
+              <button onClick={addRevisitInbody} style={{marginTop:8,padding:"10px 12px",borderRadius:10,border:"none",background:"#16a34a",color:"white",fontWeight:800}}>재방문 인바디 그래프에 추가</button>
             </div>
 
             {customerInbodyHistory.length > 1 && <div style={{marginTop:12, border:"1px solid #e2e8f0", borderRadius:10, padding:10}}>
