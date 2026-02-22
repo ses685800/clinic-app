@@ -11,6 +11,10 @@
       body { margin: 0; background: #f1f5f9; }
       input, textarea, select, button { font-family: system-ui, sans-serif; }
       button { cursor: pointer; }
+      @media print {
+        body { background: white; }
+        .no-print { display: none !important; }
+      }
     </style>
   </head>
   <body>
@@ -90,18 +94,63 @@
         return { points, width, height };
       }
 
-      function buildOhengComment(counts) {
+      function buildOhengComment(parsed, counts) {
         const entries = Object.entries(counts);
         const min = Math.min(...entries.map(([,v]) => v));
         const max = Math.max(...entries.map(([,v]) => v));
         const weak = entries.filter(([,v]) => v === min).map(([k]) => k);
         const strong = entries.filter(([,v]) => v === max).map(([k]) => k);
-        return {
-          weak,
-          strong,
-          text: `강한 오행: ${strong.map((k)=>EL_LABEL[k]).join(", ")} / 약한 오행: ${weak.map((k)=>EL_LABEL[k]).join(", ")}\n` +
-            `강한 기운은 열감·긴장·과민으로 나타날 수 있고, 약한 기운은 냉감·피로·순환저하로 이어질 수 있어 균형 관리가 필요합니다.`
-        };
+
+        const [year, month, day, hour] = parsed;
+        const sajuSummary = `사주: ${year.stemKor}${year.branchKor}년 · ${month.stemKor}${month.branchKor}월 · ${day.stemKor}${day.branchKor}일 · ${hour.stemKor}${hour.branchKor}시`;
+
+        const isWaterStrong = strong.includes("water");
+        const isFireWeak = weak.includes("fire");
+        const hasEarthPressure = counts.earth >= 2;
+
+        const sections = [
+          {
+            title: "1) 핵심 구조",
+            items: [
+              `일간: ${day.stem}(${day.stemKor})`,
+              `강한 오행: ${strong.map((k)=>EL_LABEL[k]).join(", ")}`,
+              `약한 오행: ${weak.map((k)=>EL_LABEL[k]).join(", ")}`,
+            ],
+          },
+          {
+            title: "2) 수(水) 과다 체질 경향",
+            items: isWaterStrong
+              ? ["부종·냉증·체액대사 불균형이 반복되기 쉬움", "스트레스 시 혈압·혈당 변동이 커지기 쉬움", "생각 과다·예민·피로 누적 패턴 주의"]
+              : ["수 기운이 상대적으로 약해 수분/순환 관리가 필요"]
+          },
+          {
+            title: "3) 화(火) 부족 의미",
+            items: isFireWeak
+              ? ["체온·말초순환·기초대사 저하로 체중 감량이 더딜 수 있음", "피로회복이 느리고 손발이 찬 패턴이 나타날 수 있음"]
+              : ["화 기운은 비교적 유지되어 대사력 저하 위험이 상대적으로 낮음"]
+          },
+          {
+            title: "4) 건강 관리 핵심 전략",
+            items: ["지속적인 체온 유지(전신온열돔 + 하체 근력)", "공복 고강도 유산소는 피하고 식후 걷기 중심", "카페인/냉음료 과다 제한, 미지근한 수분 섭취"],
+          },
+          {
+            title: "5) 음식 방향",
+            items: ["도움: 생강·계피·적색 채소·따뜻한 단백질", "주의: 냉샐러드 과다·빙과류·야간 탄수 과다"],
+          },
+          {
+            title: "6) 결론",
+            items: ["핵심은 땀만 많이 내는 것이 아니라, 지속적인 체온 상승 + 근육 유지입니다."],
+          },
+        ];
+
+        if (hasEarthPressure && isWaterStrong) {
+          sections.splice(3, 0, {
+            title: "보충 해석",
+            items: ["토(土)가 수(水)를 누르는 구조에서는 겉은 차고 속은 긴장된 패턴이 동반될 수 있습니다."],
+          });
+        }
+
+        return { weak, strong, sajuSummary, sections };
       }
 
       function getPillarCards(parsed) {
@@ -142,7 +191,7 @@
         const parsedRes = useMemo(() => parseSajuKor(sajuRaw), [sajuRaw]);
         const parsed = parsedRes.ok ? parsedRes.value : null;
         const counts = useMemo(() => parsed ? countElements(parsed) : null, [parsed]);
-        const ohengComment = useMemo(() => counts ? buildOhengComment(counts) : null, [counts]);
+        const ohengComment = useMemo(() => (parsed && counts) ? buildOhengComment(parsed, counts) : null, [parsed, counts]);
 
         const result = useMemo(() => {
           if (!parsed || !counts || !ohengComment) return null;
@@ -205,7 +254,7 @@
           <h1 style={{fontSize:28, fontWeight:900}}>체온1도씨플러스 상담앱</h1>
           <p style={{color:"#64748b"}}>오행상담용 문진 5개 + 사주오행 + 인바디 분석</p>
 
-          <div style={{display:"flex", gap:8, marginTop:12}}>{[1,2,3].map((n) => <div key={n} style={{padding:"8px 12px", borderRadius:999, fontWeight:800, background: step===n ? "#ff6a00" : "#e2e8f0", color: step===n ? "white" : "#334155"}}>STEP {n}</div>)}</div>
+          <div className="no-print" style={{display:"flex", gap:8, marginTop:12}}>{[1,2,3].map((n) => <div key={n} style={{padding:"8px 12px", borderRadius:999, fontWeight:800, background: step===n ? "#ff6a00" : "#e2e8f0", color: step===n ? "white" : "#334155"}}>STEP {n}</div>)}</div>
 
           {step===1 && <div style={{marginTop:16, background:"#fff", border:"1px solid #e2e8f0", borderRadius:16, padding:16}}>
             <h2>1) 고객정보 + 사주 + 오행 문진(5문항)</h2>
@@ -277,7 +326,17 @@
 
             <div style={{marginTop:8, border:"1px solid #e2e8f0", borderRadius:10, padding:10}}>
               <b>오행 건강 분석</b>
-              <div style={{marginTop:6, whiteSpace:"pre-line", color:"#334155"}}>{result.ohengComment.text}</div>
+              <div style={{marginTop:6, color:"#334155", fontWeight:700}}>{result.ohengComment.sajuSummary}</div>
+              <div style={{marginTop:8, display:"grid", gap:8}}>
+                {result.ohengComment.sections.map((sec) => (
+                  <div key={sec.title} style={{padding:8, borderRadius:8, background:"#f8fafc"}}>
+                    <div style={{fontWeight:800}}>{sec.title}</div>
+                    <ul style={{margin:"6px 0 0 16px", color:"#334155"}}>
+                      {sec.items.map((it, i)=><li key={i}>{it}</li>)}
+                    </ul>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div style={{marginTop:8, border:"1px solid #e2e8f0", borderRadius:10, padding:10}}>
@@ -300,7 +359,7 @@
             <div style={{marginTop:10, padding:10, background:"#0f172a", color:"white", borderRadius:10}}>
               추천: {result.program.title} / {result.program.recommend.label} {result.program.recommend.price.toLocaleString()}원
             </div>
-            <div style={{display:"flex", gap:8, marginTop:12}}>
+            <div className="no-print" style={{display:"flex", gap:8, marginTop:12}}>
               <button onClick={()=>window.print()} style={{flex:1, padding:12}}>인쇄/PDF</button>
               <button onClick={saveCustomer} style={{flex:1, padding:12, background:"#16a34a", color:"white", border:"none", borderRadius:10}}>고객 저장</button>
               <button onClick={resetAll} style={{flex:1, padding:12}}>리셋</button>
