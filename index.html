@@ -385,8 +385,6 @@
         const parsedRes = useMemo(() => parseSajuKor(sajuRaw), [sajuRaw]);
         const parsed = parsedRes.ok ? parsedRes.value : null;
         const counts = useMemo(() => parsed ? countElements(parsed) : null, [parsed]);
-        const ohengComment = useMemo(() => (parsed && counts) ? buildOhengComment(parsed, counts) : null, [parsed, counts]);
-
         const surveyAnalysis = useMemo(() => analyzeSurvey(questionnaire), [questionnaire]);
         const inbodyAnalysis = useMemo(() => analyzeInbody(inbody, useInbody), [inbody, useInbody]);
 
