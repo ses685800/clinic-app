@@ -14,6 +14,7 @@
       @media print {
         body { background: white; }
         .no-print { display: none !important; }
+        .click-card:hover { background:#fff7ed; border-color:#fdba74 !important; }
       }
     </style>
   </head>
@@ -165,7 +166,11 @@
       }
 
       function App() {
+        const [view, setView] = useState("form");
         const [step, setStep] = useState(1);
+        const [customers, setCustomers] = useState([]);
+        const [searchQuery, setSearchQuery] = useState("");
+        const [currentId, setCurrentId] = useState(null);
         const [name, setName] = useState("");
         const [phone, setPhone] = useState("");
         const [sajuRaw, setSajuRaw] = useState("");
@@ -180,7 +185,9 @@
           const customersRaw = localStorage.getItem("assessments-local");
           try {
             if (historyRaw) setInbodyHistory(JSON.parse(historyRaw));
+            const list = customersRaw ? JSON.parse(customersRaw) : [];
             if (!customersRaw) localStorage.setItem("assessments-local", JSON.stringify([]));
+            setCustomers(Array.isArray(list) ? list : []);
           } catch (_) {}
         }, []);
 
@@ -222,6 +229,7 @@
 
         function resetAll() {
           if (!confirm("초기화할까요?")) return;
+          setView("form");
           setStep(1);
           setName("");
           setPhone("");
@@ -229,11 +237,14 @@
           setQuestionnaire({ mainSymptom:"", coldHeat:"", digestion:"", sleep:"", stress:"" });
           setUseInbody(true);
           setInbody({ weight:"", muscle:"", water:"", fatKg:"", fatPct:"", phaseAngle:"" });
+          setCurrentId(null);
         }
 
         function saveCustomer() {
           if (!result) return;
           const record = {
+            id: currentId || String(Date.now()),
+            updatedAt: Date.now(),
             createdAt: new Date().toISOString(),
             customer:{ name, phone },
             sajuRaw,
@@ -245,15 +256,65 @@
             recommendations: { program: result.program, diet: result.diet, exercise: result.exercise, heatDome: result.heatDome, atomy: result.atomy },
           };
           const prev = JSON.parse(localStorage.getItem("assessments-local") || "[]");
-          localStorage.setItem("assessments-local", JSON.stringify([record, ...prev].slice(0, 100)));
+          const next = [record, ...prev.filter((x)=>x.id !== record.id)].slice(0, 100);
+          localStorage.setItem("assessments-local", JSON.stringify(next));
+          setCustomers(next);
+          setCurrentId(record.id);
           if (result.inbodyUsed) setInbodyHistory((h) => [...h, { date: new Date().toISOString().slice(0, 10), ...inbody }].slice(-20));
           alert("✅ 로컬 저장 완료");
         }
+
+        function loadCustomer(c) {
+          setView("form");
+          setStep(3);
+          setCurrentId(c.id || null);
+          setName(c.customer?.name || "");
+          setPhone(c.customer?.phone || "");
+          setSajuRaw(c.sajuRaw || "");
+          setQuestionnaire(c.questionnaire || { mainSymptom:"", coldHeat:"", digestion:"", sleep:"", stress:"" });
+          setUseInbody(Boolean(c.inbody));
+          setInbody(c.inbody || { weight:"", muscle:"", water:"", fatKg:"", fatPct:"", phaseAngle:"" });
+        }
+
+        function deleteCustomer(id) {
+          if (!confirm("이 고객 기록을 삭제할까요?")) return;
+          const next = customers.filter((c)=>c.id !== id);
+          localStorage.setItem("assessments-local", JSON.stringify(next));
+          setCustomers(next);
+        }
+
+        const filteredCustomers = customers.filter((c) => {
+          const n = c.customer?.name || "";
+          const p = c.customer?.phone || "";
+          return n.includes(searchQuery) || p.includes(searchQuery);
+        });
 
         return <div style={{maxWidth:960, margin:"0 auto", padding:16, fontFamily:"system-ui"}}>
           <h1 style={{fontSize:28, fontWeight:900}}>체온1도씨플러스 상담앱</h1>
           <p style={{color:"#64748b"}}>오행상담용 문진 5개 + 사주오행 + 인바디 분석</p>
 
+          <div className="no-print" style={{display:"flex", gap:8, marginTop:12}}>
+            <button onClick={()=>{ setView("form"); setStep(1); }} style={{padding:"8px 12px", borderRadius:999, border:"1px solid #cbd5e1", background:view==="form"?"#0f172a":"white", color:view==="form"?"white":"#334155", fontWeight:800}}>신규 상담</button>
+            <button onClick={()=>setView("dashboard")} style={{padding:"8px 12px", borderRadius:999, border:"1px solid #cbd5e1", background:view==="dashboard"?"#0f172a":"white", color:view==="dashboard"?"white":"#334155", fontWeight:800}}>저장 목록 ({customers.length})</button>
+          </div>
+
+          {view === "dashboard" && <div style={{marginTop:16, background:"#fff", border:"1px solid #e2e8f0", borderRadius:16, padding:16}}>
+            <h2>저장된 고객 목록</h2>
+            <input value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} placeholder="이름/전화번호 검색" style={{marginTop:8, width:"100%", padding:12, borderRadius:12, border:"1px solid #cbd5e1"}} />
+            <div style={{marginTop:10, display:"grid", gap:8}}>
+              {filteredCustomers.length === 0 ? <div style={{color:"#64748b"}}>저장된 고객이 없습니다.</div> : filteredCustomers.map((c)=> (
+                <div key={c.id} className="click-card" style={{border:"1px solid #e2e8f0", borderRadius:12, padding:12, display:"flex", justifyContent:"space-between", gap:8}}>
+                  <div onClick={()=>loadCustomer(c)} style={{cursor:"pointer", flex:1}}>
+                    <div style={{fontWeight:800}}>{c.customer?.name || "-"} / {c.customer?.phone || "-"}</div>
+                    <div style={{fontSize:12, color:"#64748b", marginTop:4}}>{new Date(c.updatedAt || Date.now()).toLocaleString()}</div>
+                  </div>
+                  <button onClick={()=>deleteCustomer(c.id)} style={{padding:"8px 10px", borderRadius:10, border:"1px solid #fecaca", background:"#fef2f2", color:"#b91c1c"}}>삭제</button>
+                </div>
+              ))}
+            </div>
+          </div>}
+
+          {view === "form" && <>
           <div className="no-print" style={{display:"flex", gap:8, marginTop:12}}>{[1,2,3].map((n) => <div key={n} style={{padding:"8px 12px", borderRadius:999, fontWeight:800, background: step===n ? "#ff6a00" : "#e2e8f0", color: step===n ? "white" : "#334155"}}>STEP {n}</div>)}</div>
 
           {step===1 && <div style={{marginTop:16, background:"#fff", border:"1px solid #e2e8f0", borderRadius:16, padding:16}}>
@@ -365,6 +426,7 @@
               <button onClick={resetAll} style={{flex:1, padding:12}}>리셋</button>
             </div>
           </div>}
+        </> }
         </div>;
       }
 
