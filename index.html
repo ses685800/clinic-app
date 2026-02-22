@@ -84,6 +84,73 @@
         stress: "비타민B"
       };
 
+
+      const CONSTITUTION_CODE_BOOK = {
+        S3R: {
+          title:"수정체 순환형",
+          feature:["다리 붓기", "오후 붓기 심화"],
+          prescription:["온열 30분", "웨이브 20분", "종아리 수축 운동"],
+          supplements:["애터미 오메가3", "애터미 헤모힘"],
+          ment:"순환을 돌리면서 혈관 흐름을 같이 올립니다."
+        },
+        H2M: {
+          title:"화부족 저대사형",
+          feature:["체온 낮음", "체지방 감량 반응 저하"],
+          prescription:["온열 40분", "웨이브 15분", "스텝 3분"],
+          supplements:["애터미 B컴플렉스", "애터미 프로바이오틱스"],
+          ment:"대사를 먼저 올려야 체지방이 반응합니다."
+        },
+        T3M: {
+          title:"토정체 소화형",
+          feature:["가스/트림", "더부룩함"],
+          prescription:["복부 온열 30분", "웨이브 15분"],
+          supplements:["애터미 프로바이오틱스", "애터미 식이섬유 제품"],
+          ment:"소화가 풀려야 붓기도 줄어듭니다."
+        },
+        W1N: {
+          title:"목과다 긴장형",
+          feature:["불면", "예민/긴장"],
+          prescription:["온열 40분(저강도)", "복식호흡"],
+          supplements:["애터미 칼마디", "애터미 B컴플렉스"],
+          ment:"신경을 안정시키는 방향으로 갑니다."
+        },
+        M2R: {
+          title:"금허 면역형",
+          feature:["면역 저하", "피부 건조/호흡기 민감"],
+          prescription:["온열 35분", "웨이브 15분"],
+          supplements:["애터미 헤모힘", "애터미 비타민C"],
+          ment:"면역을 올려야 회복속도가 빨라집니다."
+        },
+        ST4R: {
+          title:"수+토 복합정체형",
+          feature:["붓기 + 소화불량 동시"],
+          prescription:["온열 30분", "웨이브 20분", "가벼운 걷기"],
+          supplements:["애터미 프로바이오틱스", "애터미 오메가3", "애터미 헤모힘"],
+          ment:"장과 혈관을 같이 돌립니다."
+        },
+        T2C: {
+          title:"토허 근감소형",
+          feature:["근육량 저하", "피로 누적"],
+          prescription:["온열 30분", "웨이브 20분", "하체 근력"],
+          supplements:["애터미 단백질 제품", "애터미 칼마디"],
+          ment:"근육이 늘어야 기초대사가 유지됩니다."
+        },
+        S2C: {
+          title:"수허 냉증형",
+          feature:["손발 냉증", "허리 시림"],
+          prescription:["온열 40분", "저강도 걷기"],
+          supplements:["애터미 B컴플렉스", "애터미 오메가3"],
+          ment:"속체온을 유지하는 방향으로 갑니다."
+        }
+      };
+
+      const OPERATION_RULES = [
+        "한 번에 2~3제품까지만 제안",
+        "‘치료’ 표현 대신 ‘보조’ 표현 사용",
+        "관리 + 영양 연결 설명",
+        "4주 후 코드 재평가"
+      ];
+
       function parseSajuKor(raw) {
         const parts = raw.trim().split(/\s+/).filter(Boolean);
         if (parts.length !== 4) return { ok:false, error:"사주는 4개(년 월 일 시) 입력 예: 신해 기해 임인 기유" };
@@ -188,6 +255,29 @@
           if (ATOMY_BY_ISSUE[r]) set.add(ATOMY_BY_ISSUE[r]);
         });
         return Array.from(set).slice(0, 4);
+      }
+
+      function deriveConstitutionCode({ counts, questionnaire, inbodyAnalysis, inbody }) {
+        const isEdema = questionnaire.mainSymptom === "다리 붓기" || counts.water >= 3;
+        const isDigestion = ["속이 더부룩하다", "가스/트림이 잦다", "식곤증이 심하다"].includes(questionnaire.digestion);
+        const isCold = questionnaire.coldHeat === "손발이 차다" || questionnaire.mainSymptom === "손발 냉증";
+        const isStress = ["매우 높다", "높다"].includes(questionnaire.stress) || ["잠들기 어렵다", "자주 깬다"].includes(questionnaire.sleep);
+        const fatPct = Number(inbody.fatPct || 0);
+        const muscle = Number(inbody.muscle || 0);
+
+        let code = "H2M";
+        if (isEdema && isDigestion) code = "ST4R";
+        else if (isEdema) code = "S3R";
+        else if (isStress && counts.wood >= 2) code = "W1N";
+        else if (isDigestion) code = "T3M";
+        else if (isCold && counts.water <= 1) code = "S2C";
+        else if (fatPct >= 30 || counts.fire <= 1) code = "H2M";
+        else if (muscle > 0 && muscle < 22) code = "T2C";
+        else if (counts.metal <= 1) code = "M2R";
+
+        const profile = CONSTITUTION_CODE_BOOK[code] || CONSTITUTION_CODE_BOOK.H2M;
+        const inbodySummary = inbodyAnalysis.used ? inbodyAnalysis.points.join(" / ") : "인바디 미측정";
+        return { code, profile, inbodySummary };
       }
 
       function buildOhengComment(parsed, counts, surveyAnalysis, inbodyAnalysis) {
@@ -317,7 +407,8 @@
           const priority = candidates.reduce((acc, k) => ((acc[k] = (acc[k] || 0) + 1), acc), {});
           const primaryTarget = ohengComment.primaryTarget || Object.keys(priority).sort((a,b)=>priority[b]-priority[a])[0] || ohengComment.weak[0];
           const baseReco = RECO[primaryTarget] || RECO[ohengComment.weak[0]];
-          const atomySuggestions = matchAtomySuggestions(baseReco.atomy, surveyAnalysis, inbodyAnalysis);
+          const codePack = deriveConstitutionCode({ counts, questionnaire, inbodyAnalysis, inbody });
+          const atomySuggestions = Array.from(new Set([...(codePack.profile.supplements || []), ...matchAtomySuggestions(baseReco.atomy, surveyAnalysis, inbodyAnalysis)])).slice(0,3);
 
           return {
             parsed,
@@ -332,8 +423,9 @@
             surveyAnalysis,
             inbodyAnalysis,
             primaryTarget,
+            codePack,
           };
-        }, [parsed, counts, useInbody, inbody, surveyAnalysis, inbodyAnalysis]);
+        }, [parsed, counts, useInbody, inbody, surveyAnalysis, inbodyAnalysis, questionnaire]);
 
         const trendData = useMemo(() => buildTrendPoints(inbodyHistory, trendMetric), [inbodyHistory, trendMetric]);
 
@@ -375,6 +467,7 @@
             surveyAnalysis: result.surveyAnalysis,
             inbodyAnalysis: result.inbodyAnalysis,
             primaryTarget: result.primaryTarget,
+            constitutionCode: result.codePack,
           };
           const prev = JSON.parse(localStorage.getItem("assessments-local") || "[]");
           const next = [record, ...prev.filter((x)=>x.id !== record.id)].slice(0, 100);
@@ -551,6 +644,19 @@
               <div style={{display:"flex", justifyContent:"space-between"}}><b>인바디 누적 추이</b><select value={trendMetric} onChange={(e)=>setTrendMetric(e.target.value)}>{Object.keys(INBODY_KEYS).map((k)=><option key={k} value={k}>{INBODY_KEYS[k]}</option>)}</select></div>
               {trendData ? <svg viewBox={`0 0 ${trendData.width} ${trendData.height}`} style={{width:"100%", marginTop:8}}><polyline fill="none" stroke="#0ea5e9" strokeWidth="3" points={trendData.points.map((p)=>`${p.x},${p.y}`).join(" ")} />{trendData.points.map((p)=><circle key={p.x} cx={p.x} cy={p.y} r="4" fill="#0284c7" />)}</svg> : <div>2회 이상 저장 시 그래프 표시</div>}
             </div>}
+
+            <div style={{marginTop:12, border:"2px solid #cbd5e1", borderRadius:12, padding:12, background:"#f8fafc"}}>
+              <b>체온1도씨 체질코드</b>
+              <div style={{marginTop:6, fontWeight:900, fontSize:20}}>{result.codePack.code} · {result.codePack.profile.title}</div>
+              <div style={{marginTop:6, color:"#334155"}}>특징: {result.codePack.profile.feature.join(' / ')}</div>
+              <div style={{marginTop:6, color:"#334155"}}>관리 처방: {result.codePack.profile.prescription.join(' + ')}</div>
+              <div style={{marginTop:6, color:"#334155"}}>인바디 코멘트: {result.codePack.inbodySummary}</div>
+              <div style={{marginTop:6, color:"#0f172a", fontWeight:700}}>상담 멘트: “{result.codePack.profile.ment}”</div>
+              <ul style={{marginTop:8, color:"#475569"}}>
+                {OPERATION_RULES.map((r, i)=><li key={i}>• {r}</li>)}
+              </ul>
+              <div style={{marginTop:8, fontWeight:800}}>통일 멘트: “관리로 몸을 돌리고, 영양으로 유지합니다.”</div>
+            </div>
 
             <div style={{marginTop:10, padding:10, background:"#0f172a", color:"white", borderRadius:10}}>
               추천: {result.program.title} / {result.program.recommend.label} {result.program.recommend.price.toLocaleString()}원
