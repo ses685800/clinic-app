@@ -668,19 +668,6 @@
               </div>
             </div>
 
-            <div style={{marginTop:8, border:"1px solid #e2e8f0", borderRadius:10, padding:10}}>
-              <b>문진 요약</b>
-              <ul style={{marginTop:8}}>
-                {QUESTIONS.map((q) => <li key={q.key}>{q.label} : {questionnaire[q.key]}</li>)}
-              </ul>
-            </div>
-
-            <div style={{marginTop:8, border:"1px solid #e2e8f0", borderRadius:10, padding:10}}>
-              <b>문진 기반 상담 포인트</b>
-              <ul style={{marginTop:8, color:"#334155"}}>
-                {result.surveyAnalysis.points.length ? result.surveyAnalysis.points.map((p,i)=><li key={i}>{p}</li>) : <li>특이 상담 포인트 없음</li>}
-              </ul>
-            </div>
 
             <div style={{marginTop:8, border:"1px solid #e2e8f0", borderRadius:10, padding:10}}>
               <b>인바디 기반 상담 포인트</b>
