@@ -222,9 +222,10 @@
 
       function analyzeInbody(inbody, useInbody) {
         if (!useInbody) return { used:false, risks:[], points:["인바디 데이터 없이 사주/문진 기반 분석"], target:"earth" };
-        const fatPct = Number(inbody.fatPct || 0);
-        const phase = Number(inbody.phaseAngle || 0);
-        const water = Number(inbody.water || 0);
+        const safeInbody = inbody && typeof inbody === "object" ? inbody : { fatPct:"", phaseAngle:"", water:"" };
+        const fatPct = Number(safeInbody.fatPct || 0);
+        const phase = Number(safeInbody.phaseAngle || 0);
+        const water = Number(safeInbody.water || 0);
         const risks = [];
         const points = [];
         let target = "earth";
@@ -251,34 +252,38 @@
       }
 
       function matchAtomySuggestions(baseAtomy, surveyAnalysis, inbodyAnalysis) {
-        const set = new Set(baseAtomy);
-        if (surveyAnalysis.target === "earth") set.add(ATOMY_BY_ISSUE.digestion);
-        if (surveyAnalysis.target === "wood") set.add(ATOMY_BY_ISSUE.stress);
-        inbodyAnalysis.risks.forEach((r) => {
+        const safeSurvey = surveyAnalysis && typeof surveyAnalysis === "object" ? surveyAnalysis : { target:"earth" };
+        const safeInbody = inbodyAnalysis && typeof inbodyAnalysis === "object" ? inbodyAnalysis : { risks:[] };
+        const set = new Set(Array.isArray(baseAtomy) ? baseAtomy : []);
+        if (safeSurvey.target === "earth") set.add(ATOMY_BY_ISSUE.digestion);
+        if (safeSurvey.target === "wood") set.add(ATOMY_BY_ISSUE.stress);
+        (safeInbody.risks || []).forEach((r) => {
           if (ATOMY_BY_ISSUE[r]) set.add(ATOMY_BY_ISSUE[r]);
         });
         return Array.from(set).slice(0, 4);
       }
 
       function deriveConstitutionCode({ counts, questionnaire, inbodyAnalysis, inbody }) {
+        const safeCounts = counts && typeof counts === "object" ? counts : { wood:0, fire:0, earth:0, metal:0, water:0 };
         const safeQuestionnaire = questionnaire && typeof questionnaire === "object" ? questionnaire : { mainSymptom:"", coldHeat:"", digestion:"", sleep:"", stress:"" };
         const safeInbodyAnalysis = inbodyAnalysis && typeof inbodyAnalysis === "object" ? inbodyAnalysis : { used:false, points:[] };
-        const isEdema = safeQuestionnaire.mainSymptom === "다리 붓기" || counts.water >= 3;
+        const safeInbody = inbody && typeof inbody === "object" ? inbody : { fatPct:"", muscle:"" };
+        const isEdema = safeQuestionnaire.mainSymptom === "다리 붓기" || safeCounts.water >= 3;
         const isDigestion = ["속이 더부룩하다", "가스/트림이 잦다", "식곤증이 심하다"].includes(safeQuestionnaire.digestion);
         const isCold = safeQuestionnaire.coldHeat === "손발이 차다" || safeQuestionnaire.mainSymptom === "손발 냉증";
         const isStress = ["매우 높다", "높다"].includes(safeQuestionnaire.stress) || ["잠들기 어렵다", "자주 깬다"].includes(safeQuestionnaire.sleep);
-        const fatPct = Number(inbody.fatPct || 0);
-        const muscle = Number(inbody.muscle || 0);
+        const fatPct = Number(safeInbody.fatPct || 0);
+        const muscle = Number(safeInbody.muscle || 0);
 
         let code = "H2M";
         if (isEdema && isDigestion) code = "ST4R";
         else if (isEdema) code = "S3R";
-        else if (isStress && counts.wood >= 2) code = "W1N";
+        else if (isStress && safeCounts.wood >= 2) code = "W1N";
         else if (isDigestion) code = "T3M";
-        else if (isCold && counts.water <= 1) code = "S2C";
-        else if (fatPct >= 30 || counts.fire <= 1) code = "H2M";
+        else if (isCold && safeCounts.water <= 1) code = "S2C";
+        else if (fatPct >= 30 || safeCounts.fire <= 1) code = "H2M";
         else if (muscle > 0 && muscle < 22) code = "T2C";
-        else if (counts.metal <= 1) code = "M2R";
+        else if (safeCounts.metal <= 1) code = "M2R";
 
         const profile = CONSTITUTION_CODE_BOOK[code] || CONSTITUTION_CODE_BOOK.H2M;
         const inbodySummary = safeInbodyAnalysis.used ? safeInbodyAnalysis.points.join(" / ") : "인바디 미측정";
@@ -370,6 +375,32 @@
           { title:"월주", top:month.stem, topEl:month.stemEl, topSub:"월간", bottom:month.branch, bottomEl:month.branchEl, bottomSub:"월지" },
           { title:"년주", top:year.stem, topEl:year.stemEl, topSub:"년간", bottom:year.branch, bottomEl:year.branchEl, bottomSub:"년지" },
         ];
+      }
+
+      class AppErrorBoundary extends React.Component {
+        constructor(props) {
+          super(props);
+          this.state = { hasError:false, message:"" };
+        }
+        static getDerivedStateFromError(error) {
+          return { hasError:true, message:error?.message || "알 수 없는 오류" };
+        }
+        componentDidCatch(error) {
+          console.error("앱 렌더링 오류:", error);
+        }
+        render() {
+          if (this.state.hasError) {
+            return (
+              <div style={{maxWidth:900,margin:"40px auto",padding:20,background:"#fff",border:"1px solid #fecaca",borderRadius:12,color:"#7f1d1d"}}>
+                <h2 style={{marginTop:0}}>화면 오류가 발생했습니다</h2>
+                <p>최근 입력/저장 데이터 형식 문제로 렌더링이 중단됐을 수 있습니다.</p>
+                <p style={{fontWeight:700}}>오류: {this.state.message}</p>
+                <button onClick={()=>window.location.reload()} style={{marginTop:12,padding:"10px 14px",borderRadius:8,border:"none",background:"#16a34a",color:"white",fontWeight:700}}>새로고침</button>
+              </div>
+            );
+          }
+          return this.props.children;
+        }
       }
 
       function App() {
@@ -704,7 +735,7 @@
         </div>;
       }
 
-      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+      ReactDOM.createRoot(document.getElementById("root")).render(<AppErrorBoundary><App /></AppErrorBoundary>);
     </script>
   </body>
 </html>
