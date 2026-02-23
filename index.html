@@ -312,8 +312,8 @@
         const weak = entries.filter(([,v]) => v === min).map(([k]) => k);
         const strong = entries.filter(([,v]) => v === max).map(([k]) => k);
 
-        const [year, month, day, hour] = safeParsed;
-        if (!year || !month || !day || !hour) return { weak:["earth"], strong:["earth"], sajuSummary:"사주 입력 확인 필요", sections:[], primaryTarget:"earth" };
+        const [year, month, day, hour] = parsed;
+        if (!year || !month || !day || !hour) return [];
         const sajuSummary = `사주: ${year.stemKor}${year.branchKor}년 · ${month.stemKor}${month.branchKor}월 · ${day.stemKor}${day.branchKor}일 · ${hour.stemKor}${hour.branchKor}시`;
 
         const candidates = [weak[0], safeSurveyAnalysis.target, safeInbodyAnalysis.target].filter(Boolean);
@@ -367,8 +367,8 @@
 
       function getPillarCards(parsed) {
         if (!parsed || parsed.length !== 4) return [];
-        const [year, month, day, hour] = safeParsed;
-        if (!year || !month || !day || !hour) return { weak:["earth"], strong:["earth"], sajuSummary:"사주 입력 확인 필요", sections:[], primaryTarget:"earth" };
+        const [year, month, day, hour] = parsed;
+        if (!year || !month || !day || !hour) return [];
         return [
           { title:"시주", top:hour.stem, topEl:hour.stemEl, topSub:"시간", bottom:hour.branch, bottomEl:hour.branchEl, bottomSub:"시지" },
           { title:"일주", top:day.stem, topEl:day.stemEl, topSub:"일간", bottom:day.branch, bottomEl:day.branchEl, bottomSub:"일지" },
