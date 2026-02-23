@@ -144,13 +144,6 @@
         }
       };
 
-      const OPERATION_RULES = [
-        "한 번에 2~3제품까지만 제안",
-        "‘치료’ 표현 대신 ‘보조’ 표현 사용",
-        "관리 + 영양 연결 설명",
-        "4주 후 코드 재평가"
-      ];
-
       function parseSajuKor(raw) {
         const parts = raw.trim().split(/\s+/).filter(Boolean);
         if (parts.length !== 4) return { ok:false, error:"사주는 4개(년 월 일 시) 입력 예: 신해 기해 임인 기유" };
@@ -698,14 +691,9 @@
             <div style={{marginTop:12, border:"2px solid #cbd5e1", borderRadius:12, padding:12, background:"#f8fafc"}}>
               <b>체온1도씨 체질코드</b>
               <div style={{marginTop:6, fontWeight:900, fontSize:20}}>{result.codePack.code} · {result.codePack.profile.title}</div>
-              <div style={{marginTop:6, color:"#334155"}}>특징: {result.codePack.profile.feature.join(' / ')}</div>
-              <div style={{marginTop:6, color:"#334155"}}>관리 처방: {result.codePack.profile.prescription.join(' + ')}</div>
-              <div style={{marginTop:6, color:"#334155"}}>인바디 코멘트: {result.codePack.inbodySummary}</div>
-              <div style={{marginTop:6, color:"#0f172a", fontWeight:700}}>상담 멘트: “{result.codePack.profile.ment}”</div>
-              <ul style={{marginTop:8, color:"#475569"}}>
-                {OPERATION_RULES.map((r, i)=><li key={i}>• {r}</li>)}
-              </ul>
-              <div style={{marginTop:8, fontWeight:800}}>통일 멘트: “관리로 몸을 돌리고, 영양으로 유지합니다.”</div>
+              <p style={{marginTop:8, marginBottom:0, color:"#334155", fontSize:18, lineHeight:1.6, fontWeight:600}}>특징: {result.codePack.profile.feature.join(' / ')}</p>
+              <p style={{marginTop:8, marginBottom:0, color:"#334155", fontSize:18, lineHeight:1.6, fontWeight:600}}>관리 처방: {result.codePack.profile.prescription.join(' + ')}</p>
+              <p style={{marginTop:8, marginBottom:0, color:"#334155", fontSize:18, lineHeight:1.6, fontWeight:600}}>인바디 코멘트: {result.codePack.inbodySummary}</p>
             </div>
 
             <div style={{marginTop:10, padding:10, background:"#0f172a", color:"white", borderRadius:10}}>
