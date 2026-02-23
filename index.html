@@ -1,435 +1,715 @@
-import React, { useMemo, useState } from "react";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "./firebase";
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>체온1도씨플러스 상담앱</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      body { margin: 0; background: #f1f5f9; }
+      input, textarea, select, button { font-family: system-ui, sans-serif; }
+      button { cursor: pointer; }
+      @media print {
+        body { background: white; }
+        .no-print { display: none !important; }
+        .click-card:hover { background:#fff7ed; border-color:#fdba74 !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
 
-/** 1) 한글 -> 한문 매핑 */
-const STEM_KOR_TO_HANJA = { 갑:"甲", 을:"乙", 병:"丙", 정:"丁", 무:"戊", 기:"己", 경:"庚", 신:"辛", 임:"壬", 계:"癸" };
-const BRANCH_KOR_TO_HANJA = { 자:"子", 축:"丑", 인:"寅", 묘:"卯", 진:"辰", 사:"巳", 오:"午", 미:"未", 신:"申", 유:"酉", 술:"戌", 해:"亥" };
+    <script type="text/babel">
+      const { useEffect, useMemo, useState } = React;
 
-/** 2) 오행 매핑 */
-const STEM_EL = { 甲:"wood",乙:"wood",丙:"fire",丁:"fire",戊:"earth",己:"earth",庚:"metal",辛:"metal",壬:"water",癸:"water" };
-const BRANCH_EL = { 子:"water",亥:"water",寅:"wood",卯:"wood",巳:"fire",午:"fire",辰:"earth",戌:"earth",丑:"earth",未:"earth",申:"metal",酉:"metal" };
+      const STEM_KOR_TO_HANJA = { 갑:"甲", 을:"乙", 병:"丙", 정:"丁", 무:"戊", 기:"己", 경:"庚", 신:"辛", 임:"壬", 계:"癸" };
+      const BRANCH_KOR_TO_HANJA = { 자:"子", 축:"丑", 인:"寅", 묘:"卯", 진:"辰", 사:"巳", 오:"午", 미:"未", 신:"申", 유:"酉", 술:"戌", 해:"亥" };
+      const STEM_EL = { 甲:"wood",乙:"wood",丙:"fire",丁:"fire",戊:"earth",己:"earth",庚:"metal",辛:"metal",壬:"water",癸:"water" };
+      const BRANCH_EL = { 子:"water",亥:"water",寅:"wood",卯:"wood",巳:"fire",午:"fire",辰:"earth",戌:"earth",丑:"earth",未:"earth",申:"metal",酉:"metal" };
 
-const EL_LABEL = { wood:"목(木)", fire:"화(火)", earth:"토(土)", metal:"금(金)", water:"수(水)" };
-const EL_COLOR = { wood:"#16a34a", fire:"#dc2626", earth:"#a16207", metal:"#64748b", water:"#2563eb" };
+      const EL_LABEL = { wood:"목(木)", fire:"화(火)", earth:"토(土)", metal:"금(金)", water:"수(水)" };
+      const EL_COLOR = { wood:"#16a34a", fire:"#dc2626", earth:"#a16207", metal:"#64748b", water:"#2563eb" };
+      const PRICE_TABLE = {
+        trial: { label:"1회 체험", price: 70000 },
+        w4: { label:"4주 11회", price: 800000 },
+        w8: { label:"8주 집중", price: 1500000 },
+        w12: { label:"12주 완성", price: 2000000 },
+      };
 
-/** 3) 가격표 */
-const PRICE_TABLE = {
-  trial: { label:"1회 체험", price: 70000 },
-  w4:    { label:"4주 11회", price: 800000, weeks:4, sessions:11 },
-  w8:    { label:"8주 집중", price: 1500000, weeks:8, sessions:22 },
-  w12:   { label:"12주 완성", price: 2000000, weeks:12, sessions:33 },
-};
+      const RECO = {
+        wood: { programName:"간·순환 리커버리", diet:["녹색채소","신맛 소량","야식 줄이기"], exercise:["스트레칭","요가","걷기"], heatDome:["주 3회 35~40분","복부·골반 집중"], atomy:["헤모힘","오메가3"] },
+        fire: { programName:"심장·수면 밸런스", diet:["토마토","카페인 줄이기","매운맛 줄이기"], exercise:["빠른 걷기","호흡 명상","가벼운 유산소"], heatDome:["주 2~3회 30~35분","저온부터 점진"], atomy:["비타민C","칼마디"] },
+        earth: { programName:"장·대사 리셋", diet:["따뜻한 음식","식이섬유","밀가루 줄이기"], exercise:["식후 걷기","스쿼트","코어"], heatDome:["주 3회 35분","복부 순환"], atomy:["프로바이오틱스","비타민B"] },
+        metal: { programName:"폐·피부 디톡스", diet:["배/무","수분섭취","흡연 줄이기"], exercise:["호흡운동","가벼운 근력","걷기"], heatDome:["주 2~3회 30분","등·견갑부 중심"], atomy:["프로폴리스","비타민C"] },
+        water: { programName:"신장·부종 순환", diet:["검은콩","저염식","야식 금지"], exercise:["하체 강화","골반 스트레칭","걷기"], heatDome:["주 3회 40분","하복부·허리 중심"], atomy:["홍삼","비타민B"] },
+      };
 
-/** 4) 추천 템플릿(오행별) */
-const RECO = {
-  wood: {
-    programName: "간·순환 리커버리 솔루션",
-    diet: ["녹색채소(시금치/브로콜리)", "신맛(매실/레몬)", "야식·술 줄이기"],
-    exercise: ["스트레칭 10분/일", "요가·필라테스", "가벼운 등산/산책"],
-  },
-  fire: {
-    programName: "심장·수면 밸런스 솔루션",
-    diet: ["토마토/비트", "카페인 줄이기", "매운 음식 빈도 낮추기"],
-    exercise: ["빠른 걷기 20분", "호흡 명상", "수영(가능하면)"],
-  },
-  earth: {
-    programName: "장·대사 리셋 솔루션",
-    diet: ["따뜻한 음식(죽/국)", "식이섬유(양배추/잡곡)", "과식·밀가루 줄이기"],
-    exercise: ["식후 15분 걷기", "하체 근력(스쿼트)", "복부 코어 5분"],
-  },
-  metal: {
-    programName: "폐·피부 디톡스 솔루션",
-    diet: ["배/무/도라지", "수분 섭취", "흡연·먼지 줄이기"],
-    exercise: ["호흡운동", "등산/유산소", "가벼운 근력"],
-  },
-  water: {
-    programName: "신장·부종 순환 솔루션",
-    diet: ["검은콩/해조류", "짜게 먹기 줄이기", "야식·과로 금지"],
-    exercise: ["하체 강화", "골반 스트레칭", "온열 케어(가능하면)"],
-  },
-};
+      const INBODY_KEYS = { weight:"체중(kg)", muscle:"근육량(kg)", water:"체수분(L)", fatKg:"체지방량(kg)", fatPct:"체지방률(%)", phaseAngle:"위상각(°)" };
 
-/** 5) 유틸: 사주 문자열 파싱 (예: "신해 기해 임인 기유") */
-function parseSajuKor(raw) {
-  const parts = raw.trim().split(/\s+/).filter(Boolean);
-  if (parts.length !== 4) return { ok:false, error:"사주는 4개(년 월 일 시)로 띄어쓰기 입력해주세요. 예: 신해 기해 임인 기유" };
+      const QUESTIONS = [
+        { key:"mainSymptom", label:"어디가 가장 불편하신가요?", options:["선택", "어깨/목 결림", "허리/골반", "복부/소화", "다리 붓기", "손발 냉증", "수면/피로"] },
+        { key:"coldHeat", label:"몸의 온도 느낌은 어떤가요?", options:["선택", "손발이 차다", "상체 열이 많다", "냉/열이 번갈아 있다", "보통"] },
+        { key:"digestion", label:"식후 상태는 어떤가요?", options:["선택", "속이 더부룩하다", "가스/트림이 잦다", "식곤증이 심하다", "큰 불편 없음"] },
+        { key:"sleep", label:"수면은 어떤 편인가요?", options:["선택", "잠들기 어렵다", "자주 깬다", "자고 나도 피곤", "수면 양호"] },
+        { key:"stress", label:"스트레스/피로도는 어떤가요?", options:["선택", "매우 높다", "높다", "보통", "낮다"] },
+      ];
 
-  const parsed = parts.map((pair) => {
-    if (pair.length !== 2) return null;
-    const stemKor = pair[0];
-    const branchKor = pair[1];
-    const stem = STEM_KOR_TO_HANJA[stemKor];
-    const branch = BRANCH_KOR_TO_HANJA[branchKor];
-    if (!stem || !branch) return null;
-    const stemEl = STEM_EL[stem];
-    const branchEl = BRANCH_EL[branch];
-    return { stemKor, branchKor, stem, branch, stemEl, branchEl };
-  });
 
-  if (parsed.some((x) => !x)) return { ok:false, error:"한글 천간/지지 입력이 맞는지 확인해주세요. (갑을병정무기경신임계 / 자축인묘진사오미신유술해)" };
-  return { ok:true, value: parsed };
-}
+      const OPTION_TO_ELEMENT = {
+        mainSymptom: {
+          "어깨/목 결림":"wood", "허리/골반":"water", "복부/소화":"earth", "다리 붓기":"water", "손발 냉증":"fire", "수면/피로":"fire"
+        },
+        coldHeat: {
+          "손발이 차다":"fire", "상체 열이 많다":"water", "냉/열이 번갈아 있다":"water", "보통":"earth"
+        },
+        digestion: {
+          "속이 더부룩하다":"earth", "가스/트림이 잦다":"earth", "식곤증이 심하다":"earth", "큰 불편 없음":"metal"
+        },
+        sleep: {
+          "잠들기 어렵다":"fire", "자주 깬다":"fire", "자고 나도 피곤":"water", "수면 양호":"wood"
+        },
+        stress: {
+          "매우 높다":"wood", "높다":"wood", "보통":"earth", "낮다":"metal"
+        }
+      };
 
-/** 6) 오행 카운트 */
-function countElements(parsed) {
-  const c = { wood:0, fire:0, earth:0, metal:0, water:0 };
-  parsed.forEach(p => { c[p.stemEl]++; c[p.branchEl]++; });
-  return c;
-}
+      const ATOMY_BY_ISSUE = {
+        cold: "홍삼",
+        edema: "칼륨/미네랄 밸런스 제품",
+        highFat: "오메가3",
+        lowPhase: "헤모힘",
+        digestion: "프로바이오틱스",
+        stress: "비타민B"
+      };
 
-/** 7) 체질 판정(부족/과다) */
-function judgeConstitution(counts) {
-  const entries = Object.entries(counts);
-  const minVal = Math.min(...entries.map(([,v])=>v));
-  const maxVal = Math.max(...entries.map(([,v])=>v));
-  const weak = entries.filter(([,v])=>v===minVal).map(([k])=>k);
-  const strong = entries.filter(([,v])=>v===maxVal).map(([k])=>k);
-  return { weak, strong, minVal, maxVal };
-}
 
-/** 8) 인바디 기반 기간 업셀(실전형) */
-function pickProgram({ inbody }) {
-  if (!inbody) return PRICE_TABLE.w4;
+      const CONSTITUTION_CODE_BOOK = {
+        S3R: {
+          title:"수정체 순환형",
+          feature:["다리 붓기", "오후 붓기 심화"],
+          prescription:["온열 30분", "웨이브 20분", "종아리 수축 운동"],
+          supplements:["애터미 오메가3", "애터미 헤모힘"],
+          ment:"순환을 돌리면서 혈관 흐름을 같이 올립니다."
+        },
+        H2M: {
+          title:"화부족 저대사형",
+          feature:["체온 낮음", "체지방 감량 반응 저하"],
+          prescription:["온열 40분", "웨이브 15분", "스텝 3분"],
+          supplements:["애터미 B컴플렉스", "애터미 프로바이오틱스"],
+          ment:"대사를 먼저 올려야 체지방이 반응합니다."
+        },
+        T3M: {
+          title:"토정체 소화형",
+          feature:["가스/트림", "더부룩함"],
+          prescription:["복부 온열 30분", "웨이브 15분"],
+          supplements:["애터미 프로바이오틱스", "애터미 식이섬유 제품"],
+          ment:"소화가 풀려야 붓기도 줄어듭니다."
+        },
+        W1N: {
+          title:"목과다 긴장형",
+          feature:["불면", "예민/긴장"],
+          prescription:["온열 40분(저강도)", "복식호흡"],
+          supplements:["애터미 칼마디", "애터미 B컴플렉스"],
+          ment:"신경을 안정시키는 방향으로 갑니다."
+        },
+        M2R: {
+          title:"금허 면역형",
+          feature:["면역 저하", "피부 건조/호흡기 민감"],
+          prescription:["온열 35분", "웨이브 15분"],
+          supplements:["애터미 헤모힘", "애터미 비타민C"],
+          ment:"면역을 올려야 회복속도가 빨라집니다."
+        },
+        ST4R: {
+          title:"수+토 복합정체형",
+          feature:["붓기 + 소화불량 동시"],
+          prescription:["온열 30분", "웨이브 20분", "가벼운 걷기"],
+          supplements:["애터미 프로바이오틱스", "애터미 오메가3", "애터미 헤모힘"],
+          ment:"장과 혈관을 같이 돌립니다."
+        },
+        T2C: {
+          title:"토허 근감소형",
+          feature:["근육량 저하", "피로 누적"],
+          prescription:["온열 30분", "웨이브 20분", "하체 근력"],
+          supplements:["애터미 단백질 제품", "애터미 칼마디"],
+          ment:"근육이 늘어야 기초대사가 유지됩니다."
+        },
+        S2C: {
+          title:"수허 냉증형",
+          feature:["손발 냉증", "허리 시림"],
+          prescription:["온열 40분", "저강도 걷기"],
+          supplements:["애터미 B컴플렉스", "애터미 오메가3"],
+          ment:"속체온을 유지하는 방향으로 갑니다."
+        }
+      };
 
-  const phase = Number(inbody.phaseAngle || 0);
-  const fatPct = Number(inbody.fatPct || 0);
-  const water = Number(inbody.water || 0);
+      function parseSajuKor(raw) {
+        const parts = raw.trim().split(/\s+/).filter(Boolean);
+        if (parts.length !== 4) return { ok:false, error:"사주는 4개(년 월 일 시) 입력 예: 신해 기해 임인 기유" };
+        const parsed = parts.map((pair) => {
+          if (pair.length !== 2) return null;
+          const stemKor = pair[0], branchKor = pair[1];
+          const stem = STEM_KOR_TO_HANJA[stemKor];
+          const branch = BRANCH_KOR_TO_HANJA[branchKor];
+          if (!stem || !branch) return null;
+          return { stemKor, branchKor, stem, branch, stemEl: STEM_EL[stem], branchEl: BRANCH_EL[branch] };
+        });
+        if (parsed.some((x) => !x)) return { ok:false, error:"천간/지지 입력을 확인해주세요." };
+        return { ok:true, value: parsed };
+      }
 
-  // 위험 신호면 기간 늘리기
-  if (phase && phase < 5.0) return PRICE_TABLE.w12;
-  if (fatPct && fatPct >= 30) return PRICE_TABLE.w8;
-  if (water && water < 32) return PRICE_TABLE.w8;
-  return PRICE_TABLE.w4;
-}
+      function countElements(parsed) {
+        const c = { wood:0, fire:0, earth:0, metal:0, water:0 };
+        parsed.forEach((p) => { c[p.stemEl] += 1; c[p.branchEl] += 1; });
+        return c;
+      }
 
-export default function App() {
-  const [step, setStep] = useState(1);
+      function pickProgram(inbody) {
+        if (!inbody) return PRICE_TABLE.w4;
+        if (Number(inbody.phaseAngle) < 5 && Number(inbody.phaseAngle) > 0) return PRICE_TABLE.w12;
+        if (Number(inbody.fatPct) >= 30) return PRICE_TABLE.w8;
+        return PRICE_TABLE.w4;
+      }
 
-  // STEP1
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [sajuRaw, setSajuRaw] = useState("");
-  const [questionnaire, setQuestionnaire] = useState({
-    sleep: "", digestion: "", constipation: "", edema: "", stress: "", eating: "", exercise: "", note: ""
-  });
+      function buildTrendPoints(history, metricKey) {
+        const values = history.map((h) => ({ date: h.date, value: Number(h[metricKey]) })).filter((h) => Number.isFinite(h.value) && h.value > 0);
+        if (values.length < 2) return null;
+        const min = Math.min(...values.map((v) => v.value));
+        const max = Math.max(...values.map((v) => v.value));
+        const spread = max - min || 1;
+        const width = 520, height = 180;
+        const points = values.map((v, i) => ({ ...v, x: (i / (values.length - 1)) * (width - 40) + 20, y: height - ((v.value - min) / spread) * (height - 40) - 20 }));
+        return { points, width, height };
+      }
 
-  // STEP2 inbody
-  const [useInbody, setUseInbody] = useState(true);
-  const [inbody, setInbody] = useState({
-    weight:"", muscle:"", water:"", fatKg:"", fatPct:"", phaseAngle:""
-  });
+      function analyzeSurvey(questionnaire) {
+        const safeQuestionnaire = questionnaire && typeof questionnaire === "object"
+          ? questionnaire
+          : { mainSymptom:"", coldHeat:"", digestion:"", sleep:"", stress:"" };
+        const score = { wood:0, fire:0, earth:0, metal:0, water:0 };
+        const points = [];
+        Object.keys(safeQuestionnaire).forEach((key) => {
+          const ans = safeQuestionnaire[key];
+          const el = OPTION_TO_ELEMENT[key]?.[ans];
+          if (el) score[el] += 1;
+        });
+        const max = Math.max(...Object.values(score));
+        const target = Object.keys(score).find((k)=>score[k]===max) || "earth";
 
-  const parsedRes = useMemo(() => parseSajuKor(sajuRaw), [sajuRaw]);
-  const parsed = parsedRes.ok ? parsedRes.value : null;
+        if (["손발이 차다", "자고 나도 피곤"].includes(safeQuestionnaire.coldHeat) || safeQuestionnaire.mainSymptom === "손발 냉증") {
+          points.push("체온 저하·말초순환 저하 신호가 있어 온열 관리 강도를 높이세요.");
+        }
+        if (["속이 더부룩하다", "가스/트림이 잦다", "식곤증이 심하다"].includes(safeQuestionnaire.digestion)) {
+          points.push("소화기 부담이 있어 식사량 분할·야식 제한이 필요합니다.");
+        }
+        if (["매우 높다", "높다"].includes(safeQuestionnaire.stress)) {
+          points.push("스트레스 축이 높아 혈압/혈당 변동 관리가 중요합니다.");
+        }
+        if (["잠들기 어렵다", "자주 깬다"].includes(safeQuestionnaire.sleep)) {
+          points.push("수면 질 저하로 회복력이 떨어지는 패턴이므로 취침 루틴 관리가 필요합니다.");
+        }
 
-  const counts = useMemo(() => parsed ? countElements(parsed) : null, [parsed]);
-  const constitution = useMemo(() => counts ? judgeConstitution(counts) : null, [counts]);
+        return { score, target, points };
+      }
 
-  const result = useMemo(() => {
-    if (!parsed || !counts || !constitution) return null;
+      function analyzeInbody(inbody, useInbody) {
+        if (!useInbody) return { used:false, risks:[], points:["인바디 데이터 없이 사주/문진 기반 분석"], target:"earth" };
+        const safeInbody = inbody && typeof inbody === "object" ? inbody : { fatPct:"", phaseAngle:"", water:"" };
+        const fatPct = Number(safeInbody.fatPct || 0);
+        const phase = Number(safeInbody.phaseAngle || 0);
+        const water = Number(safeInbody.water || 0);
+        const risks = [];
+        const points = [];
+        let target = "earth";
 
-    // “대표 부족 오행”은 첫번째를 대표로 사용(동점이면 여러개 표시)
-    const weakKey = constitution.weak[0];
-    const strongKeys = constitution.strong;
+        if (fatPct >= 30) {
+          risks.push("highFat");
+          points.push(`체지방률 ${fatPct}%로 대사 저하/감량 정체 위험이 있습니다.`);
+          target = "earth";
+        }
+        if (phase > 0 && phase < 5) {
+          risks.push("lowPhase");
+          points.push(`위상각 ${phase}°로 세포 활력 저하 신호가 있습니다.`);
+          target = "water";
+        }
+        if (water > 0 && water < 32) {
+          risks.push("cold");
+          points.push(`체수분 ${water}L로 순환 및 회복 저하 가능성이 있습니다.`);
+          target = "water";
+        }
+        if (!risks.length) {
+          points.push("인바디 위험 신호는 크지 않으며 유지·관리 중심으로 접근합니다.");
+        }
+        return { used:true, risks, points, target };
+      }
 
-    const baseReco = RECO[weakKey];
-    const chosenProgram = pickProgram({ inbody: useInbody ? inbody : null });
+      function matchAtomySuggestions(baseAtomy, surveyAnalysis, inbodyAnalysis) {
+        const safeSurvey = surveyAnalysis && typeof surveyAnalysis === "object" ? surveyAnalysis : { target:"earth" };
+        const safeInbody = inbodyAnalysis && typeof inbodyAnalysis === "object" ? inbodyAnalysis : { risks:[] };
+        const set = new Set(Array.isArray(baseAtomy) ? baseAtomy : []);
+        if (safeSurvey.target === "earth") set.add(ATOMY_BY_ISSUE.digestion);
+        if (safeSurvey.target === "wood") set.add(ATOMY_BY_ISSUE.stress);
+        (safeInbody.risks || []).forEach((r) => {
+          if (ATOMY_BY_ISSUE[r]) set.add(ATOMY_BY_ISSUE[r]);
+        });
+        return Array.from(set).slice(0, 4);
+      }
 
-    return {
-      parsed, counts, constitution,
-      weakKey, strongKeys,
-      program: {
-        title: baseReco.programName,
-        recommend: chosenProgram,
-        priceTable: PRICE_TABLE
-      },
-      diet: baseReco.diet,
-      exercise: baseReco.exercise,
-      inbodyUsed: useInbody,
-    };
-  }, [parsed, counts, constitution, useInbody, inbody]);
+      function deriveConstitutionCode({ counts, questionnaire, inbodyAnalysis, inbody }) {
+        const safeCounts = counts && typeof counts === "object" ? counts : { wood:0, fire:0, earth:0, metal:0, water:0 };
+        const safeQuestionnaire = questionnaire && typeof questionnaire === "object" ? questionnaire : { mainSymptom:"", coldHeat:"", digestion:"", sleep:"", stress:"" };
+        const safeInbodyAnalysis = inbodyAnalysis && typeof inbodyAnalysis === "object" ? inbodyAnalysis : { used:false, points:[] };
+        const safeInbody = inbody && typeof inbody === "object" ? inbody : { fatPct:"", muscle:"" };
+        const isEdema = safeQuestionnaire.mainSymptom === "다리 붓기" || safeCounts.water >= 3;
+        const isDigestion = ["속이 더부룩하다", "가스/트림이 잦다", "식곤증이 심하다"].includes(safeQuestionnaire.digestion);
+        const isCold = safeQuestionnaire.coldHeat === "손발이 차다" || safeQuestionnaire.mainSymptom === "손발 냉증";
+        const isStress = ["매우 높다", "높다"].includes(safeQuestionnaire.stress) || ["잠들기 어렵다", "자주 깬다"].includes(safeQuestionnaire.sleep);
+        const fatPct = Number(safeInbody.fatPct || 0);
+        const muscle = Number(safeInbody.muscle || 0);
 
-  function goStep2() {
-    if (!name.trim()) return alert("이름을 입력해 주세요.");
-    if (!phone.trim()) return alert("전화번호를 입력해 주세요.");
-    if (!parsedRes.ok) return alert(parsedRes.error);
-    setStep(2);
-  }
+        let code = "H2M";
+        if (isEdema && isDigestion) code = "ST4R";
+        else if (isEdema) code = "S3R";
+        else if (isStress && safeCounts.wood >= 2) code = "W1N";
+        else if (isDigestion) code = "T3M";
+        else if (isCold && safeCounts.water <= 1) code = "S2C";
+        else if (fatPct >= 30 || safeCounts.fire <= 1) code = "H2M";
+        else if (muscle > 0 && muscle < 22) code = "T2C";
+        else if (safeCounts.metal <= 1) code = "M2R";
 
-  async function saveCustomer() {
-    if (!result) return;
+        const profile = CONSTITUTION_CODE_BOOK[code] || CONSTITUTION_CODE_BOOK.H2M;
+        const inbodySummary = safeInbodyAnalysis.used ? safeInbodyAnalysis.points.join(" / ") : "인바디 미측정";
+        return { code, profile, inbodySummary };
+      }
 
-    const payload = {
-      customer: { name, phone },
-      sajuRaw,
-      sajuParsed: result.parsed,
-      ohengCounts: result.counts,
-      constitution: result.constitution,
-      questionnaire,
-      inbody: result.inbodyUsed ? inbody : null,
-      recommendations: {
-        program: result.program,
-        diet: result.diet,
-        exercise: result.exercise,
-      },
-      createdAt: serverTimestamp(),
-    };
+      function buildOhengComment(parsed, counts, surveyAnalysis, inbodyAnalysis, questionnaire, inbody) {
+        const safeParsed = Array.isArray(parsed) ? parsed : [];
+        const safeCounts = counts && typeof counts === "object" ? counts : { wood:0, fire:0, earth:0, metal:0, water:0 };
+        const safeSurveyAnalysis = surveyAnalysis && typeof surveyAnalysis === "object"
+          ? surveyAnalysis
+          : { target:"earth", points:[] };
+        const safeInbodyAnalysis = inbodyAnalysis && typeof inbodyAnalysis === "object"
+          ? inbodyAnalysis
+          : { target:"earth", points:[], risks:[], used:false };
+        const safeQuestionnaire = questionnaire && typeof questionnaire === "object"
+          ? questionnaire
+          : { mainSymptom:"", coldHeat:"", digestion:"", sleep:"", stress:"" };
+        const safeInbody = inbody && typeof inbody === "object"
+          ? inbody
+          : { weight:"", fatPct:"", phaseAngle:"", water:"" };
 
-    try {
-      await addDoc(collection(db, "assessments"), payload);
-      alert("✅ 저장 완료! (assessments에 기록이 저장됐어요)");
-    } catch (e) {
-      console.error(e);
-      alert("저장 실패: Firebase 설정(ENV) 또는 권한을 확인해 주세요.");
-    }
-  }
+        const entries = Object.entries(safeCounts);
+        const min = Math.min(...entries.map(([,v]) => v));
+        const max = Math.max(...entries.map(([,v]) => v));
+        const weak = entries.filter(([,v]) => v === min).map(([k]) => k);
+        const strong = entries.filter(([,v]) => v === max).map(([k]) => k);
 
-  return (
-    <div style={{maxWidth: 900, margin:"0 auto", padding: 16, fontFamily:"system-ui"}}>
-      <h1 style={{fontSize:28, fontWeight:900}}>체온1도씨플러스 상담앱</h1>
-      <p style={{color:"#64748b"}}>문진 + 사주 오행 + 인바디 기반 솔루션 리포트</p>
+        const [year, month, day, hour] = parsed;
+        if (!year || !month || !day || !hour) return [];
+        const sajuSummary = `사주: ${year.stemKor}${year.branchKor}년 · ${month.stemKor}${month.branchKor}월 · ${day.stemKor}${day.branchKor}일 · ${hour.stemKor}${hour.branchKor}시`;
 
-      <div style={{display:"flex", gap:8, marginTop:12}}>
-        {[1,2,3].map(n => (
-          <div key={n} style={{
-            padding:"8px 12px", borderRadius:999, fontWeight:800,
-            background: step===n ? "#ff6a00" : "#e2e8f0",
-            color: step===n ? "white" : "#334155"
-          }}>
-            STEP {n}
+        const candidates = [weak[0], safeSurveyAnalysis.target, safeInbodyAnalysis.target].filter(Boolean);
+        const priority = candidates.reduce((acc, k) => ((acc[k] = (acc[k] || 0) + 1), acc), {});
+        const primaryTarget = Object.keys(priority).sort((a,b)=>priority[b]-priority[a])[0] || weak[0] || 'earth';
+
+        const strategyByTarget = {
+          wood: ["간 해독 리듬(수면 23시 전) 유지", "목·견갑 스트레칭과 가벼운 유산소 병행", "음주·야식 빈도 주 1회 이하로 제한"],
+          fire: ["체온 상승 루틴(온열돔+호흡) 고정", "카페인 오후 2시 이후 제한", "수면 질 회복을 위해 취침 전 디지털 디톡스"],
+          earth: ["식사량 분할·천천히 씹기", "식후 15분 걷기 고정", "밀가루/야간 탄수 비중 줄여 대사 안정화"],
+          metal: ["호흡기·피부 건조 관리(수분/습도)", "아침 복식호흡 5분", "배변 리듬 유지를 위한 식이섬유 보강"],
+          water: ["하체 체온 유지(족욕/온열) 강화", "미지근한 수분 섭취 중심", "하체 근력 운동으로 부종/순환 관리"],
+        };
+
+        const foodByTarget = {
+          wood: ["도움: 녹색채소·신맛 소량", "주의: 과음·야식·기름진 안주"],
+          fire: ["도움: 비트·토마토·따뜻한 단백질", "주의: 과한 카페인·매운 야식"],
+          earth: ["도움: 단호박·양배추·잡곡", "주의: 냉샐러드 과다·밀가루"],
+          metal: ["도움: 도라지·배·무", "주의: 건조한 간식·흡연/미세먼지 노출"],
+          water: ["도움: 검은콩·해조류·생강", "주의: 냉음료·빙과·늦은 밤 탄수"],
+        };
+
+        const surveyHighlights = [];
+        if (safeQuestionnaire.mainSymptom && safeQuestionnaire.mainSymptom !== "선택") surveyHighlights.push(`주요 불편: ${safeQuestionnaire.mainSymptom}`);
+        if (safeQuestionnaire.coldHeat && safeQuestionnaire.coldHeat !== "보통" && safeQuestionnaire.coldHeat !== "선택") surveyHighlights.push(`온도 경향: ${safeQuestionnaire.coldHeat}`);
+        if (safeQuestionnaire.digestion && safeQuestionnaire.digestion !== "큰 불편 없음" && safeQuestionnaire.digestion !== "선택") surveyHighlights.push(`소화 상태: ${safeQuestionnaire.digestion}`);
+        if (safeQuestionnaire.sleep && safeQuestionnaire.sleep !== "수면 양호" && safeQuestionnaire.sleep !== "선택") surveyHighlights.push(`수면 상태: ${safeQuestionnaire.sleep}`);
+        if (["매우 높다","높다"].includes(safeQuestionnaire.stress)) surveyHighlights.push(`스트레스: ${safeQuestionnaire.stress}`);
+
+        const inbodyNumbers = [];
+        if (safeInbody.weight) inbodyNumbers.push(`체중 ${safeInbody.weight}kg`);
+        if (safeInbody.fatPct) inbodyNumbers.push(`체지방률 ${safeInbody.fatPct}%`);
+        if (safeInbody.phaseAngle) inbodyNumbers.push(`위상각 ${safeInbody.phaseAngle}°`);
+        if (safeInbody.water) inbodyNumbers.push(`체수분 ${safeInbody.water}L`);
+
+        const inbodySummary = safeInbodyAnalysis.used
+          ? (safeInbodyAnalysis.risks.length ? `인바디 위험요인(${safeInbodyAnalysis.risks.join(', ')}) 기준으로 ${EL_LABEL[safeInbodyAnalysis.target]} 관리 비중을 높입니다.` : "인바디상 큰 위험 신호는 없으나 유지 관리 중심으로 갑니다.")
+          : "인바디 미측정 상태이므로 문진·사주 중심으로 강도 조절합니다.";
+
+        const sections = [
+          { title: "1) 핵심 구조", items: [ `일간: ${day.stem}(${day.stemKor})`, `강한 오행: ${strong.map((k)=>EL_LABEL[k]).join(", ")}`, `약한 오행: ${weak.map((k)=>EL_LABEL[k]).join(", ")}` ] },
+          { title: "2) 오행 기반 체질 경향", items: [ `${strong.map((k)=>EL_LABEL[k]).join(", ")} 과다 시 부종/긴장/예민 패턴이 나타나기 쉽습니다.`, `${weak.map((k)=>EL_LABEL[k]).join(", ")} 부족 시 체온·순환·회복 저하가 나타날 수 있습니다.` ] },
+          { title: "3) 문진 상담 포인트", items: safeSurveyAnalysis.points.length ? safeSurveyAnalysis.points : ["문진상 특이 상담 포인트 없음"] },
+          { title: "4) 고객 맞춤 관리 전략", items: [`우선 타깃: ${EL_LABEL[primaryTarget]} (사주·문진·인바디 종합)`].concat(surveyHighlights.length?surveyHighlights:["문진상 핵심 이슈는 경미합니다."]).concat(strategyByTarget[primaryTarget]) },
+          { title: "5) 인바디 반영 상담 전략", items: [inbodySummary].concat(inbodyNumbers.length?[`현재 수치 요약: ${inbodyNumbers.join(' / ')}`]:[]).concat(safeInbodyAnalysis.points) },
+          { title: "6) 고객 맞춤 식이 방향", items: foodByTarget[primaryTarget] },
+        ];
+
+        return { weak, strong, sajuSummary, sections, primaryTarget };
+      }
+
+      function getPillarCards(parsed) {
+        if (!parsed || parsed.length !== 4) return [];
+        const [year, month, day, hour] = parsed;
+        if (!year || !month || !day || !hour) return [];
+        return [
+          { title:"시주", top:hour.stem, topEl:hour.stemEl, topSub:"시간", bottom:hour.branch, bottomEl:hour.branchEl, bottomSub:"시지" },
+          { title:"일주", top:day.stem, topEl:day.stemEl, topSub:"일간", bottom:day.branch, bottomEl:day.branchEl, bottomSub:"일지" },
+          { title:"월주", top:month.stem, topEl:month.stemEl, topSub:"월간", bottom:month.branch, bottomEl:month.branchEl, bottomSub:"월지" },
+          { title:"년주", top:year.stem, topEl:year.stemEl, topSub:"년간", bottom:year.branch, bottomEl:year.branchEl, bottomSub:"년지" },
+        ];
+      }
+
+      class AppErrorBoundary extends React.Component {
+        constructor(props) {
+          super(props);
+          this.state = { hasError:false, message:"" };
+        }
+        static getDerivedStateFromError(error) {
+          return { hasError:true, message:error?.message || "알 수 없는 오류" };
+        }
+        componentDidCatch(error) {
+          console.error("앱 렌더링 오류:", error);
+        }
+        render() {
+          if (this.state.hasError) {
+            return (
+              <div style={{maxWidth:900,margin:"40px auto",padding:20,background:"#fff",border:"1px solid #fecaca",borderRadius:12,color:"#7f1d1d"}}>
+                <h2 style={{marginTop:0}}>화면 오류가 발생했습니다</h2>
+                <p>최근 입력/저장 데이터 형식 문제로 렌더링이 중단됐을 수 있습니다.</p>
+                <p style={{fontWeight:700}}>오류: {this.state.message}</p>
+                <button onClick={()=>window.location.reload()} style={{marginTop:12,padding:"10px 14px",borderRadius:8,border:"none",background:"#16a34a",color:"white",fontWeight:700}}>새로고침</button>
+              </div>
+            );
+          }
+          return this.props.children;
+        }
+      }
+
+      function App() {
+        const [view, setView] = useState("form");
+        const [step, setStep] = useState(1);
+        const [customers, setCustomers] = useState([]);
+        const [searchQuery, setSearchQuery] = useState("");
+        const [currentId, setCurrentId] = useState(null);
+        const [name, setName] = useState("");
+        const [phone, setPhone] = useState("");
+        const [sajuRaw, setSajuRaw] = useState("");
+        const [questionnaire, setQuestionnaire] = useState({ mainSymptom:"", coldHeat:"", digestion:"", sleep:"", stress:"" });
+        const [useInbody, setUseInbody] = useState(true);
+        const [inbody, setInbody] = useState({ weight:"", muscle:"", water:"", fatKg:"", fatPct:"", phaseAngle:"" });
+        const [inbodyHistory, setInbodyHistory] = useState([]);
+        const [trendMetric, setTrendMetric] = useState("fatPct");
+        const [revisitDate, setRevisitDate] = useState(new Date().toISOString().slice(0,10));
+        const [revisitInbody, setRevisitInbody] = useState({ weight:"", muscle:"", water:"", fatKg:"", fatPct:"", phaseAngle:"" });
+
+        useEffect(() => {
+          const historyRaw = localStorage.getItem("inbody-history");
+          const customersRaw = localStorage.getItem("assessments-local");
+          try {
+            if (historyRaw) setInbodyHistory(JSON.parse(historyRaw));
+            const list = customersRaw ? JSON.parse(customersRaw) : [];
+            if (!customersRaw) localStorage.setItem("assessments-local", JSON.stringify([]));
+            setCustomers(Array.isArray(list) ? list : []);
+          } catch (_) {}
+        }, []);
+
+        useEffect(() => {
+          localStorage.setItem("inbody-history", JSON.stringify(inbodyHistory));
+        }, [inbodyHistory]);
+
+        const parsedRes = useMemo(() => parseSajuKor(sajuRaw), [sajuRaw]);
+        const parsed = parsedRes.ok ? parsedRes.value : null;
+        const counts = useMemo(() => parsed ? countElements(parsed) : null, [parsed]);
+        const surveyAnalysis = useMemo(() => analyzeSurvey(questionnaire), [questionnaire]);
+        const inbodyAnalysis = useMemo(() => analyzeInbody(inbody, useInbody), [inbody, useInbody]);
+
+        const result = useMemo(() => {
+          if (!parsed || !counts) return null;
+          const ohengComment = buildOhengComment(parsed, counts, surveyAnalysis, inbodyAnalysis, questionnaire, inbody);
+          const candidates = [ohengComment.weak[0], surveyAnalysis.target, inbodyAnalysis.target].filter(Boolean);
+          const priority = candidates.reduce((acc, k) => ((acc[k] = (acc[k] || 0) + 1), acc), {});
+          const primaryTarget = ohengComment.primaryTarget || Object.keys(priority).sort((a,b)=>priority[b]-priority[a])[0] || ohengComment.weak[0];
+          const baseReco = RECO[primaryTarget] || RECO[ohengComment.weak[0]];
+          const codePack = deriveConstitutionCode({ counts, questionnaire, inbodyAnalysis, inbody });
+          const atomySuggestions = Array.from(new Set([...(codePack.profile.supplements || []), ...matchAtomySuggestions(baseReco.atomy, surveyAnalysis, inbodyAnalysis)])).slice(0,3);
+
+          return {
+            parsed,
+            counts,
+            ohengComment,
+            inbodyUsed: useInbody,
+            program: { title: baseReco.programName, recommend: pickProgram(useInbody ? inbody : null) },
+            diet: baseReco.diet,
+            exercise: baseReco.exercise,
+            heatDome: baseReco.heatDome,
+            atomy: atomySuggestions,
+            surveyAnalysis,
+            inbodyAnalysis,
+            primaryTarget,
+            codePack,
+          };
+        }, [parsed, counts, useInbody, inbody, surveyAnalysis, inbodyAnalysis, questionnaire]);
+
+        const historyOwnerKey = currentId || `${name}_${phone}`;
+        const customerInbodyHistory = useMemo(() => inbodyHistory.filter((h)=>h.customerKey===historyOwnerKey), [inbodyHistory, historyOwnerKey]);
+        const trendData = useMemo(() => buildTrendPoints(customerInbodyHistory, trendMetric), [customerInbodyHistory, trendMetric]);
+
+        function goStep2() {
+          if (!name || !phone) return alert("이름/전화번호를 입력해 주세요.");
+          if (!parsedRes.ok) return alert(parsedRes.error);
+          const notAnswered = QUESTIONS.some((q) => !questionnaire[q.key] || questionnaire[q.key] === "선택");
+          if (notAnswered) return alert("문진 5개 항목을 모두 선택해 주세요.");
+          setStep(2);
+        }
+
+        function resetAll() {
+          if (!confirm("초기화할까요?")) return;
+          setView("form");
+          setStep(1);
+          setName("");
+          setPhone("");
+          setSajuRaw("");
+          setQuestionnaire({ mainSymptom:"", coldHeat:"", digestion:"", sleep:"", stress:"" });
+          setUseInbody(true);
+          setInbody({ weight:"", muscle:"", water:"", fatKg:"", fatPct:"", phaseAngle:"" });
+          setCurrentId(null);
+        }
+
+        function saveCustomer() {
+          if (!result) return;
+          const record = {
+            id: currentId || String(Date.now()),
+            updatedAt: Date.now(),
+            createdAt: new Date().toISOString(),
+            customer:{ name, phone },
+            sajuRaw,
+            sajuParsed: result.parsed,
+            counts: result.counts,
+            ohengComment: result.ohengComment,
+            questionnaire,
+            inbody: result.inbodyUsed ? inbody : null,
+            recommendations: { program: result.program, diet: result.diet, exercise: result.exercise, heatDome: result.heatDome, atomy: result.atomy },
+            surveyAnalysis: result.surveyAnalysis,
+            inbodyAnalysis: result.inbodyAnalysis,
+            primaryTarget: result.primaryTarget,
+            constitutionCode: result.codePack,
+          };
+          const prev = JSON.parse(localStorage.getItem("assessments-local") || "[]");
+          const next = [record, ...prev.filter((x)=>x.id !== record.id)].slice(0, 100);
+          localStorage.setItem("assessments-local", JSON.stringify(next));
+          setCustomers(next);
+          setCurrentId(record.id);
+          if (result.inbodyUsed) setInbodyHistory((h) => [...h, { customerKey: record.id, date: new Date().toISOString().slice(0, 10), ...inbody }].slice(-200));
+          alert("✅ 로컬 저장 완료");
+        }
+
+        function loadCustomer(c) {
+          setView("form");
+          setStep(3);
+          setCurrentId(c.id || null);
+          setName(c.customer?.name || "");
+          setPhone(c.customer?.phone || "");
+          setSajuRaw(c.sajuRaw || "");
+          setQuestionnaire(c.questionnaire || { mainSymptom:"", coldHeat:"", digestion:"", sleep:"", stress:"" });
+          setUseInbody(Boolean(c.inbody));
+          setInbody(c.inbody || { weight:"", muscle:"", water:"", fatKg:"", fatPct:"", phaseAngle:"" });
+          setRevisitInbody(c.inbody || { weight:"", muscle:"", water:"", fatKg:"", fatPct:"", phaseAngle:"" });
+        }
+
+        function addRevisitInbody() {
+          if (!historyOwnerKey || !name || !phone) return alert("먼저 고객을 저장/불러오기 해주세요.");
+          const hasAny = Object.values(revisitInbody).some(Boolean);
+          if (!hasAny) return alert("재방문 인바디 값을 입력해 주세요.");
+          const entry = { customerKey: historyOwnerKey, date: revisitDate || new Date().toISOString().slice(0,10), ...revisitInbody };
+          setInbodyHistory((h) => [...h, entry].slice(-200));
+          setInbody((v)=>({ ...v, ...revisitInbody }));
+          alert("✅ 재방문 인바디가 그래프에 추가되었습니다.");
+        }
+
+        function deleteCustomer(id) {
+          if (!confirm("이 고객 기록을 삭제할까요?")) return;
+          const next = customers.filter((c)=>c.id !== id);
+          localStorage.setItem("assessments-local", JSON.stringify(next));
+          setCustomers(next);
+        }
+
+        const filteredCustomers = customers.filter((c) => {
+          const n = c.customer?.name || "";
+          const p = c.customer?.phone || "";
+          return n.includes(searchQuery) || p.includes(searchQuery);
+        });
+
+        return <div style={{maxWidth:960, margin:"0 auto", padding:16, fontFamily:"system-ui"}}>
+          <h1 style={{fontSize:28, fontWeight:900}}>체온1도씨플러스 상담앱</h1>
+          <p style={{color:"#64748b"}}>오행상담용 문진 5개 + 사주오행 + 인바디 분석</p>
+
+          <div className="no-print" style={{display:"flex", gap:8, marginTop:12}}>
+            <button onClick={()=>{ setView("form"); setStep(1); }} style={{padding:"8px 12px", borderRadius:999, border:"1px solid #cbd5e1", background:view==="form"?"#0f172a":"white", color:view==="form"?"white":"#334155", fontWeight:800}}>신규 상담</button>
+            <button onClick={()=>setView("dashboard")} style={{padding:"8px 12px", borderRadius:999, border:"1px solid #cbd5e1", background:view==="dashboard"?"#0f172a":"white", color:view==="dashboard"?"white":"#334155", fontWeight:800}}>저장 목록 ({customers.length})</button>
           </div>
-        ))}
-      </div>
 
-      {/* STEP 1 */}
-      {step===1 && (
-        <div style={{marginTop:16, background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:16, padding:16}}>
-          <h2 style={{fontSize:20, fontWeight:900}}>1) 고객정보 + 사주 + 문진</h2>
-
-          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12}}>
-            <div>
-              <label style={{fontWeight:800}}>고객 이름</label>
-              <input value={name} onChange={e=>setName(e.target.value)}
-                placeholder="예: 홍길동"
-                style={{width:"100%", padding:12, borderRadius:12, border:"1px solid #cbd5e1"}} />
+          {view === "dashboard" && <div style={{marginTop:16, background:"#fff", border:"1px solid #e2e8f0", borderRadius:16, padding:16}}>
+            <h2>저장된 고객 목록</h2>
+            <input value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} placeholder="이름/전화번호 검색" style={{marginTop:8, width:"100%", padding:12, borderRadius:12, border:"1px solid #cbd5e1"}} />
+            <div style={{marginTop:10, display:"grid", gap:8}}>
+              {filteredCustomers.length === 0 ? <div style={{color:"#64748b"}}>저장된 고객이 없습니다.</div> : filteredCustomers.map((c)=> (
+                <div key={c.id} className="click-card" style={{border:"1px solid #e2e8f0", borderRadius:12, padding:12, display:"flex", justifyContent:"space-between", gap:8}}>
+                  <div onClick={()=>loadCustomer(c)} style={{cursor:"pointer", flex:1}}>
+                    <div style={{fontWeight:800}}>{c.customer?.name || "-"} / {c.customer?.phone || "-"}</div>
+                    <div style={{fontSize:12, color:"#64748b", marginTop:4}}>{new Date(c.updatedAt || Date.now()).toLocaleString()}</div>
+                  </div>
+                  <button onClick={()=>deleteCustomer(c.id)} style={{padding:"8px 10px", borderRadius:10, border:"1px solid #fecaca", background:"#fef2f2", color:"#b91c1c"}}>삭제</button>
+                </div>
+              ))}
             </div>
-            <div>
-              <label style={{fontWeight:800}}>전화번호</label>
-              <input value={phone} onChange={e=>setPhone(e.target.value)}
-                placeholder="예: 010-0000-0000"
-                style={{width:"100%", padding:12, borderRadius:12, border:"1px solid #cbd5e1"}} />
+          </div>}
+
+          {view === "form" && <>
+          <div className="no-print" style={{display:"flex", gap:8, marginTop:12}}>{[1,2,3].map((n) => <div key={n} style={{padding:"8px 12px", borderRadius:999, fontWeight:800, background: step===n ? "#ff6a00" : "#e2e8f0", color: step===n ? "white" : "#334155"}}>STEP {n}</div>)}</div>
+
+          {step===1 && <div style={{marginTop:16, background:"#fff", border:"1px solid #e2e8f0", borderRadius:16, padding:16}}>
+            <h2>1) 고객정보 + 사주 + 오행 문진(5문항)</h2>
+            <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>
+              <input value={name} onChange={(e)=>setName(e.target.value)} placeholder="고객 이름" style={{padding:12, borderRadius:10, border:"1px solid #cbd5e1"}} />
+              <input value={phone} onChange={(e)=>setPhone(e.target.value)} placeholder="전화번호" style={{padding:12, borderRadius:10, border:"1px solid #cbd5e1"}} />
             </div>
-          </div>
 
-          <div style={{marginTop:12}}>
-            <label style={{fontWeight:800}}>사주 원국(한글 4기둥)</label>
-            <input value={sajuRaw} onChange={e=>setSajuRaw(e.target.value)}
-              placeholder="예: 신해 기해 임인 기유"
-              style={{width:"100%", padding:12, borderRadius:12, border:"1px solid #cbd5e1"}} />
-            {!parsedRes.ok && sajuRaw.trim() && (
-              <div style={{marginTop:8, color:"#dc2626", fontWeight:700}}>{parsedRes.error}</div>
-            )}
-          </div>
+            <input value={sajuRaw} onChange={(e)=>setSajuRaw(e.target.value)} placeholder="사주 예: 신해 기해 임인 기유" style={{marginTop:10, width:"100%", padding:12, borderRadius:10, border:"1px solid #cbd5e1"}} />
+            {!parsedRes.ok && sajuRaw.trim() && <div style={{color:"#dc2626", marginTop:6}}>{parsedRes.error}</div>}
 
-          {/* 만세력 스타일 미리보기 */}
-          {parsedRes.ok && (
-            <div style={{marginTop:12, padding:12, borderRadius:12, border:"1px dashed #cbd5e1"}}>
-              <div style={{fontWeight:900, marginBottom:8}}>만세력 표시(한문 + 오행색)</div>
-              <div style={{display:"flex", gap:12, flexWrap:"wrap"}}>
-                {parsed.map((p, idx)=>(
-                  <div key={idx} style={{padding:12, border:"1px solid #e2e8f0", borderRadius:12, minWidth:140}}>
-                    <div style={{fontSize:26, fontWeight:900}}>
-                      <span style={{color:EL_COLOR[p.stemEl]}}>{p.stem}</span>
-                      <span style={{margin:"0 6px"}}> </span>
-                      <span style={{color:EL_COLOR[p.branchEl]}}>{p.branch}</span>
+            <div style={{marginTop:12, padding:12, border:"1px solid #e2e8f0", borderRadius:12}}>
+              <b>오행건강 문진(예시 선택)</b>
+              <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginTop:8}}>
+                {QUESTIONS.map((q) => (
+                  <div key={q.key}>
+                    <div style={{fontWeight:700, marginBottom:4}}>{q.label}</div>
+                    <select value={questionnaire[q.key]} onChange={(e)=>setQuestionnaire((v)=>({...v, [q.key]:e.target.value}))} style={{width:"100%", padding:10, borderRadius:10, border:"1px solid #cbd5e1"}}>
+                      {q.options.map((op) => <option key={op} value={op}>{op}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={goStep2} style={{marginTop:14, width:"100%", padding:12, border:"none", borderRadius:12, background:"#16a34a", color:"white", fontWeight:900}}>다음(인바디 입력)</button>
+          </div>}
+
+          {step===2 && <div style={{marginTop:16, background:"white", border:"1px solid #e2e8f0", borderRadius:16, padding:16}}>
+            <h2>2) 인바디 입력</h2>
+            <div style={{display:"flex", gap:8}}>
+              <button onClick={()=>setUseInbody(true)} style={{flex:1, padding:10}}>인바디 입력</button>
+              <button onClick={()=>setUseInbody(false)} style={{flex:1, padding:10}}>인바디 없이</button>
+            </div>
+            {useInbody && <div style={{display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginTop:10}}>{Object.keys(INBODY_KEYS).map((k) => <input key={k} type="number" value={inbody[k]} onChange={(e)=>setInbody((v)=>({...v,[k]:e.target.value}))} placeholder={INBODY_KEYS[k]} style={{padding:10, borderRadius:10, border:"1px solid #cbd5e1"}} />)}</div>}
+            <div style={{display:"flex", gap:8, marginTop:12}}>
+              <button onClick={()=>setStep(1)} style={{flex:1, padding:12}}>이전</button>
+              <button onClick={()=>setStep(3)} style={{flex:2, padding:12, background:"#16a34a", color:"white", border:"none", borderRadius:12}}>분석 결과 보기</button>
+            </div>
+          </div>}
+
+          {step===3 && result && <div style={{marginTop:16, background:"white", border:"1px solid #e2e8f0", borderRadius:16, padding:16}}>
+            <h2>3) 상담 리포트</h2>
+            <div>{name} / {phone}</div>
+
+            <div style={{marginTop:12, padding:14, borderRadius:20, border:"1px solid #d7dee8", background:"#f8fafc"}}>
+              <b>사주 원국</b>
+              <div style={{display:"grid", gridTemplateColumns:"repeat(4, minmax(0, 1fr))", gap:10, marginTop:8}}>
+                {getPillarCards(result.parsed).map((c) => (
+                  <div key={c.title} style={{textAlign:"center"}}>
+                    <div style={{fontSize:12, color:"#94a3b8", fontWeight:700, marginBottom:6}}>{c.title}</div>
+                    <div style={{border:`3px solid ${EL_COLOR[c.topEl]}`, borderRadius:16, padding:"10px 0", background:"white"}}>
+                      <div style={{fontSize:40, fontWeight:900, lineHeight:1, color:EL_COLOR[c.topEl]}}>{c.top}</div>
+                      <div style={{fontSize:12, color:"#94a3b8", marginTop:4}}>{c.topSub}</div>
                     </div>
-                    <div style={{color:"#64748b", fontWeight:700, marginTop:4}}>
-                      {p.stemKor}{p.branchKor}
+                    <div style={{height:8}} />
+                    <div style={{border:`3px solid ${EL_COLOR[c.bottomEl]}`, borderRadius:16, padding:"10px 0", background:"white"}}>
+                      <div style={{fontSize:40, fontWeight:900, lineHeight:1, color:EL_COLOR[c.bottomEl]}}>{c.bottom}</div>
+                      <div style={{fontSize:12, color:"#94a3b8", marginTop:4}}>{c.bottomSub}</div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* 문진 */}
-          <div style={{marginTop:16}}>
-            <h3 style={{fontWeight:900}}>문진(간단)</h3>
-            <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:8}}>
-              {[
-                ["sleep","수면"],["digestion","소화"],["constipation","변비"],["edema","붓기"],
-                ["stress","스트레스"],["eating","식습관"],["exercise","운동"]
-              ].map(([k,label])=>(
-                <div key={k}>
-                  <label style={{fontWeight:800}}>{label}</label>
-                  <input value={questionnaire[k]} onChange={e=>setQuestionnaire(q=>({...q,[k]:e.target.value}))}
-                    placeholder="예: 나쁨/보통/좋음"
-                    style={{width:"100%", padding:12, borderRadius:12, border:"1px solid #cbd5e1"}} />
-                </div>
-              ))}
+            <div style={{marginTop:12, padding:10, background:"#f8fafc", borderRadius:10}}>
+              {Object.keys(result.counts).map((k)=><span key={k} style={{marginRight:10, color:EL_COLOR[k], fontWeight:700}}>{EL_LABEL[k]} {result.counts[k]}개</span>)}
             </div>
-            <div style={{marginTop:12}}>
-              <label style={{fontWeight:800}}>특이사항 메모</label>
-              <textarea value={questionnaire.note} onChange={e=>setQuestionnaire(q=>({...q, note:e.target.value}))}
-                placeholder="예: 당화혈색소, 약 복용, 통증 부위 등"
-                style={{width:"100%", padding:12, borderRadius:12, border:"1px solid #cbd5e1", minHeight:90}} />
-            </div>
-          </div>
 
-          <button onClick={goStep2} style={{
-            marginTop:16, width:"100%", padding:14, borderRadius:14,
-            border:"none", background:"#ff6a00", color:"white", fontWeight:900, fontSize:18
-          }}>
-            다음(인바디 입력) →
-          </button>
-        </div>
-      )}
-
-      {/* STEP 2 */}
-      {step===2 && (
-        <div style={{marginTop:16, background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:16, padding:16}}>
-          <h2 style={{fontSize:20, fontWeight:900}}>2) 인바디 입력</h2>
-
-          <div style={{display:"flex", gap:10, marginTop:10}}>
-            <button onClick={()=>setUseInbody(true)} style={{
-              flex:1, padding:12, borderRadius:12, fontWeight:900,
-              border:"1px solid #cbd5e1", background: useInbody ? "#0ea5e9" : "#f1f5f9", color: useInbody ? "white" : "#334155"
-            }}>인바디 입력</button>
-            <button onClick={()=>setUseInbody(false)} style={{
-              flex:1, padding:12, borderRadius:12, fontWeight:900,
-              border:"1px solid #cbd5e1", background: !useInbody ? "#334155" : "#f1f5f9", color: !useInbody ? "white" : "#334155"
-            }}>인바디 없이</button>
-          </div>
-
-          {useInbody && (
-            <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginTop:12}}>
-              {[
-                ["weight","몸무게(kg)"],["muscle","근육량(kg)"],["water","체수분(L)"],
-                ["fatKg","체지방량(kg)"],["fatPct","체지방률(%)"],["phaseAngle","위상각(°)"]
-              ].map(([k,label])=>(
-                <div key={k}>
-                  <label style={{fontWeight:800}}>{label}</label>
-                  <input type="number" value={inbody[k]} onChange={e=>setInbody(v=>({...v,[k]:e.target.value}))}
-                    placeholder="0"
-                    style={{width:"100%", padding:12, borderRadius:12, border:"1px solid #cbd5e1"}} />
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div style={{display:"flex", gap:10, marginTop:16}}>
-            <button onClick={()=>setStep(1)} style={{
-              flex:1, padding:14, borderRadius:14, border:"1px solid #cbd5e1", background:"#f1f5f9", fontWeight:900
-            }}>← 이전</button>
-
-            <button onClick={()=>setStep(3)} style={{
-              flex:2, padding:14, borderRadius:14, border:"none",
-              background:"#ff6a00", color:"white", fontWeight:900, fontSize:18
-            }}>
-              분석 결과 보기 →
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* STEP 3 */}
-      {step===3 && result && (
-        <div style={{marginTop:16, background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:16, padding:16}}>
-          <h2 style={{fontSize:22, fontWeight:900}}>3) 상담 리포트</h2>
-          <div style={{color:"#64748b", fontWeight:700}}>{name} / {phone}</div>
-
-          {/* 오행 카운트 */}
-          <div style={{marginTop:12, padding:12, borderRadius:12, background:"#f8fafc"}}>
-            <div style={{fontWeight:900, marginBottom:8}}>오행 개수 자동 분석</div>
-            <div style={{display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:10}}>
-              {Object.keys(result.counts).map(k=>(
-                <div key={k} style={{border:"1px solid #e2e8f0", borderRadius:12, padding:10}}>
-                  <div style={{fontWeight:900, color:EL_COLOR[k]}}>{EL_LABEL[k]}</div>
-                  <div style={{fontSize:22, fontWeight:900}}>{result.counts[k]}개</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 체질 판정 */}
-          <div style={{marginTop:12, padding:12, borderRadius:12, border:"1px solid #e2e8f0"}}>
-            <div style={{fontWeight:900}}>체질 자동 판정</div>
-            <div style={{marginTop:8, fontWeight:800}}>
-              부족: {result.constitution.weak.map(k=>EL_LABEL[k]).join(", ")} / 과다: {result.constitution.strong.map(k=>EL_LABEL[k]).join(", ")}
-            </div>
-          </div>
-
-          {/* 인바디 요약 */}
-          <div style={{marginTop:12, padding:12, borderRadius:12, border:"1px solid #e2e8f0"}}>
-            <div style={{fontWeight:900}}>인바디 결과</div>
-            {!result.inbodyUsed ? (
-              <div style={{color:"#64748b", fontWeight:700, marginTop:6}}>인바디 없이 분석했습니다.</div>
-            ) : (
-              <div style={{display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10, marginTop:8}}>
-                {[
-                  ["체중", inbody.weight, "kg"],
-                  ["근육량", inbody.muscle, "kg"],
-                  ["체수분", inbody.water, "L"],
-                  ["체지방량", inbody.fatKg, "kg"],
-                  ["체지방률", inbody.fatPct, "%"],
-                  ["위상각", inbody.phaseAngle, "°"],
-                ].map(([label,val,unit])=>(
-                  <div key={label} style={{border:"1px solid #e2e8f0", borderRadius:12, padding:10}}>
-                    <div style={{color:"#64748b", fontWeight:800}}>{label}</div>
-                    <div style={{fontSize:20, fontWeight:900}}>{val || "-"}{val ? unit : ""}</div>
+            <div style={{marginTop:12, border:"2px solid #dbeafe", borderRadius:18, padding:16, background:"linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)"}}>
+              <div style={{fontSize:24, fontWeight:900, color:"#0f172a", letterSpacing:"-0.02em"}}>오행 건강 분석 (PPT형 요약)</div>
+              <div style={{marginTop:10, color:"#334155", fontSize:22, fontWeight:700, lineHeight:1.5}}>{result.ohengComment.sajuSummary}</div>
+              <div style={{marginTop:14, display:"grid", gap:12}}>
+                {result.ohengComment.sections.map((sec, idx) => (
+                  <div key={sec.title} style={{padding:"14px 16px", borderRadius:14, background: idx % 2 === 0 ? "#eff6ff" : "#f8fafc", border:"1px solid #dbeafe"}}>
+                    <div style={{fontWeight:900, fontSize:22, color:"#1e293b"}}>{sec.title}</div>
+                    <p style={{margin:"8px 0 0", color:"#334155", fontSize:20, lineHeight:1.65, fontWeight:600}}>{sec.items.join("  ·  ")}</p>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-
-          {/* 프로그램 제안 */}
-          <div style={{marginTop:12, padding:12, borderRadius:12, background:"#0f172a", color:"white"}}>
-            <div style={{fontWeight:900, fontSize:18}}>프로그램 제안</div>
-            <div style={{marginTop:6, fontWeight:800, color:"#fdba74"}}>
-              {result.program.title}
             </div>
 
-            <div style={{marginTop:10, padding:10, borderRadius:12, background:"rgba(255,255,255,0.08)"}}>
-              <div style={{fontWeight:900}}>추천: {result.program.recommend.label} / {result.program.recommend.price.toLocaleString()}원</div>
-              <div style={{color:"rgba(255,255,255,0.75)", marginTop:6, fontWeight:700}}>
-                체험 {PRICE_TABLE.trial.price.toLocaleString()}원 · 4주 {PRICE_TABLE.w4.price.toLocaleString()}원 · 8주 {PRICE_TABLE.w8.price.toLocaleString()}원 · 12주 {PRICE_TABLE.w12.price.toLocaleString()}원
+            <div style={{marginTop:10, border:"2px solid #dcfce7", borderRadius:18, padding:16, background:"#f0fdf4"}}>
+              <div style={{fontSize:22, fontWeight:900, color:"#14532d"}}>인바디 기반 상담 포인트</div>
+              <div style={{marginTop:10, display:"grid", gap:10}}>
+                {result.inbodyAnalysis.points.map((p,i)=>(
+                  <p key={i} style={{margin:0, padding:"12px 14px", borderRadius:12, background:"white", border:"1px solid #bbf7d0", color:"#14532d", fontSize:20, lineHeight:1.6, fontWeight:700}}>{p}</p>
+                ))}
               </div>
             </div>
-          </div>
 
-          {/* 식단/운동 */}
-          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12}}>
-            <div style={{padding:12, border:"1px solid #e2e8f0", borderRadius:12}}>
-              <div style={{fontWeight:900}}>식단 제안</div>
-              <ul style={{marginTop:8, fontWeight:700, color:"#334155"}}>
-                {result.diet.map((x,i)=><li key={i}>• {x}</li>)}
-              </ul>
+            <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginTop:10}}>
+              <div style={{border:"1px solid #e2e8f0", borderRadius:10, padding:10}}><b>전신온열돔 제안</b><ul>{result.heatDome.map((x,i)=><li key={i}>{x}</li>)}</ul></div>
+              <div style={{border:"1px solid #e2e8f0", borderRadius:10, padding:10}}><b>애터미 건강식품 매칭 제안</b><ul>{result.atomy.map((x,i)=><li key={i}>• {x}</li>)}</ul></div>
             </div>
-            <div style={{padding:12, border:"1px solid #e2e8f0", borderRadius:12}}>
-              <div style={{fontWeight:900}}>운동 제안</div>
-              <ul style={{marginTop:8, fontWeight:700, color:"#334155"}}>
-                {result.exercise.map((x,i)=><li key={i}>• {x}</li>)}
-              </ul>
+
+            <div className="no-print" style={{marginTop:12, border:"1px solid #e2e8f0", borderRadius:10, padding:10, background:"#f8fafc"}}>
+              <b>재방문 인바디 추가 입력</b>
+              <div style={{display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginTop:8}}>
+                <input type="date" value={revisitDate} onChange={(e)=>setRevisitDate(e.target.value)} style={{padding:10,borderRadius:8,border:"1px solid #cbd5e1"}} />
+                {Object.keys(INBODY_KEYS).slice(0,5).map((k)=><input key={k} type="number" value={revisitInbody[k]} onChange={(e)=>setRevisitInbody((v)=>({...v,[k]:e.target.value}))} placeholder={INBODY_KEYS[k]} style={{padding:10,borderRadius:8,border:"1px solid #cbd5e1"}} />)}
+                <input type="number" value={revisitInbody.phaseAngle} onChange={(e)=>setRevisitInbody((v)=>({...v,phaseAngle:e.target.value}))} placeholder={INBODY_KEYS.phaseAngle} style={{padding:10,borderRadius:8,border:"1px solid #cbd5e1"}} />
+              </div>
+              <button onClick={addRevisitInbody} style={{marginTop:8,padding:"10px 12px",borderRadius:10,border:"none",background:"#16a34a",color:"white",fontWeight:800}}>재방문 인바디 그래프에 추가</button>
             </div>
-          </div>
 
-          <div style={{display:"flex", gap:10, marginTop:16}}>
-            <button onClick={()=>window.print()} style={{
-              flex:1, padding:14, borderRadius:14, border:"1px solid #cbd5e1", background:"#f1f5f9", fontWeight:900
-            }}>인쇄/PDF</button>
+            {customerInbodyHistory.length > 1 && <div style={{marginTop:12, border:"1px solid #e2e8f0", borderRadius:10, padding:10}}>
+              <div style={{display:"flex", justifyContent:"space-between"}}><b>인바디 누적 추이</b><select value={trendMetric} onChange={(e)=>setTrendMetric(e.target.value)}>{Object.keys(INBODY_KEYS).map((k)=><option key={k} value={k}>{INBODY_KEYS[k]}</option>)}</select></div>
+              {trendData ? <svg viewBox={`0 0 ${trendData.width} ${trendData.height}`} style={{width:"100%", marginTop:8}}><polyline fill="none" stroke="#0ea5e9" strokeWidth="3" points={trendData.points.map((p)=>`${p.x},${p.y}`).join(" ")} />{trendData.points.map((p)=><circle key={p.x} cx={p.x} cy={p.y} r="4" fill="#0284c7" />)}</svg> : <div>2회 이상 저장 시 그래프 표시</div>}
+            </div>}
 
-            <button onClick={saveCustomer} style={{
-              flex:1, padding:14, borderRadius:14, border:"none", background:"#16a34a", color:"white", fontWeight:900
-            }}>고객 저장</button>
+            <div style={{marginTop:12, border:"2px solid #cbd5e1", borderRadius:12, padding:12, background:"#f8fafc"}}>
+              <b>체온1도씨 체질코드</b>
+              <div style={{marginTop:6, fontWeight:900, fontSize:20}}>{result.codePack.code} · {result.codePack.profile.title}</div>
+              <p style={{marginTop:8, marginBottom:0, color:"#334155", fontSize:18, lineHeight:1.6, fontWeight:600}}>특징: {result.codePack.profile.feature.join(' / ')}</p>
+              <p style={{marginTop:8, marginBottom:0, color:"#334155", fontSize:18, lineHeight:1.6, fontWeight:600}}>관리 처방: {result.codePack.profile.prescription.join(' + ')}</p>
+              <p style={{marginTop:8, marginBottom:0, color:"#334155", fontSize:18, lineHeight:1.6, fontWeight:600}}>인바디 코멘트: {result.codePack.inbodySummary}</p>
+            </div>
 
-            <button onClick={()=>{ setStep(1); }} style={{
-              flex:1, padding:14, borderRadius:14, border:"1px solid #cbd5e1", background:"#ffffff", fontWeight:900
-            }}>새 상담</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+            <div style={{marginTop:10, padding:10, background:"#0f172a", color:"white", borderRadius:10}}>
+              추천: {result.program.title} / {result.program.recommend.label} {result.program.recommend.price.toLocaleString()}원
+            </div>
+            <div className="no-print" style={{display:"flex", gap:8, marginTop:12}}>
+              <button onClick={()=>window.print()} style={{flex:1, padding:12}}>인쇄/PDF</button>
+              <button onClick={saveCustomer} style={{flex:1, padding:12, background:"#16a34a", color:"white", border:"none", borderRadius:10}}>고객 저장</button>
+              <button onClick={resetAll} style={{flex:1, padding:12}}>리셋</button>
+            </div>
+          </div>}
+        </> }
+        </div>;
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(<AppErrorBoundary><App /></AppErrorBoundary>);
+    </script>
+  </body>
+</html>
