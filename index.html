@@ -3,96 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>천일도+ v4.2 전문 상담 시스템</title>
+    <title>천일도+ v5.0 최종완성본</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #2c3e50; --secondary: #3498db; --bg: #f8f9fa; --목: #27ae60; --화: #e74c3c; --토: #f39c12; --금: #7f8c8d; --수: #2980b9; }
-        body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); margin: 0; padding: 0; }
+        body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); margin: 0; padding: 0; color: #333; }
         nav { background: var(--primary); color: white; padding: 15px; display: flex; gap: 20px; position: sticky; top: 0; z-index: 100; }
-        .nav-item { cursor: pointer; padding: 8px 15px; border-radius: 5px; font-weight: bold; }
+        .nav-item { cursor: pointer; padding: 10px 20px; border-radius: 5px; font-weight: bold; }
         .nav-item.active { background: var(--secondary); }
         .container { max-width: 900px; margin: 20px auto; padding: 0 15px; }
-        .card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        h2 { border-left: 5px solid var(--secondary); padding-left: 10px; font-size: 18px; margin-bottom: 15px; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; font-size: 15px; }
+        .card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        h2 { border-left: 5px solid var(--secondary); padding-left: 10px; font-size: 19px; margin-bottom: 20px; color: var(--primary); }
+        label { font-size: 14px; color: #555; display: block; margin-bottom: 5px; font-weight: 500; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 15px; font-size: 15px; }
+        .btn-group { display: flex; gap: 10px; }
+        .btn { border: none; padding: 16px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s; flex: 1; }
+        .btn-blue { background: var(--secondary); color: white; }
+        .btn-gray { background: #95a5a6; color: white; }
+        .btn-list { background: #34495e; color: white; text-align: left; padding: 15px; margin-bottom: 10px; border: none; border-radius: 10px; width: 100%; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* 리포트 디자인 */
+        .result-box { background: #fff; border: 2px solid #333; padding: 35px; border-radius: 20px; margin-top: 20px; display: none; }
         .saju-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0; }
-        .saju-box { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 15px 5px; text-align: center; }
-        .saju-char { font-size: 28px; font-weight: bold; margin: 5px 0; }
-        .bar-container { background: #eee; border-radius: 10px; height: 12px; margin: 5px 0 12px 0; overflow: hidden; }
-        .bar-fill { height: 100%; transition: width 0.5s; }
-        .health-tip { background: #f0f4f8; padding: 15px; border-radius: 10px; border-left: 5px solid var(--secondary); margin-top: 10px; font-size: 15px; line-height: 1.6; }
-        .view-section { display: none; }
-        .view-section.active { display: block; }
-        .btn { background: var(--secondary); color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; margin-top: 10px; }
-        .atomy-box { background: #eef7ff; border: 2px solid #3498db; padding: 15px; border-radius: 10px; margin-top: 15px; }
-        @media print { .no-print { display: none !important; } .container { width: 100%; } .card { box-shadow: none; border: 1px solid #eee; } }
+        .saju-box { background: #f9f9f9; border: 1px solid #eee; border-radius: 12px; padding: 15px 5px; text-align: center; }
+        .saju-label { font-size: 12px; color: #888; margin-bottom: 5px; }
+        .saju-char { font-size: 28px; font-weight: bold; }
+        .bar-container { background: #eee; border-radius: 10px; height: 14px; margin: 5px 0 12px 0; overflow: hidden; }
+        .bar-fill { height: 100%; transition: width 0.8s; }
+        .health-tip { background: #f0f7ff; padding: 18px; border-radius: 12px; border-left: 6px solid var(--secondary); margin: 20px 0; font-size: 15.5px; line-height: 1.7; }
+        .atomy-box { background: #fff5f5; border: 2px solid #feb2b2; padding: 18px; border-radius: 12px; margin: 15px 0; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .item-card { background: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #eee; }
+
+        @media print { .no-print, nav, .btn, h2 { display: none !important; } body { background: white; } .container { width: 100%; max-width: 100%; margin: 0; padding: 0; } .result-box { display: block !important; border: 1px solid #000; border-radius: 0; } }
     </style>
 </head>
 <body>
 
 <nav>
-    <div class="nav-item active" onclick="showTab('register')">고객접수</div>
-    <div class="nav-item" onclick="showTab('consult')">전문상담</div>
+    <div class="nav-item active" id="nav-reg" onclick="showTab('register')">1. 고객접수</div>
+    <div class="nav-item" id="nav-con" onclick="showTab('consult')">2. 전문상담</div>
 </nav>
 
 <div class="container">
     <section id="register" class="view-section active">
         <div class="card">
-            <h2>고객 정보 및 문진</h2>
-            <input type="text" id="name" placeholder="성함">
-            <input type="text" id="saju_ko" placeholder="사주 (예: 신해 기해 임인 기유)">
-            <button class="btn" onclick="saveCustomer()">데이터 전송 완료</button>
+            <h2>고객 기초정보</h2>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="name" placeholder="성함">
+                <select id="gender" style="flex:0.4;"><option value="여">여성</option><option value="남">남성</option></select>
+            </div>
+            <input type="tel" id="phone" placeholder="전화번호 (010-0000-0000)">
+            <input type="text" id="saju_ko" placeholder="사주원국 (예: 신해 기해 임인 기유)">
+            
+            <hr style="border:0; border-top:1px solid #eee; margin: 15px 0;">
+            <h2>상세 문진</h2>
+            <label>불편한 곳</label>
+            <select id="mainSymptom"><option value="선택안함">선택</option><option>어깨/목 결림</option><option>허리/골반</option><option>복부/소화</option><option>다리 붓기</option><option>손발 냉증</option><option>수면/피로</option></select>
+            <label>몸의 온도</label>
+            <select id="coldHeat"><option value="선택안함">선택</option><option>손발이 차다</option><option>상체 열이 많다</option><option>냉/열 교차</option><option>보통</option></select>
+            <label>피로도</label>
+            <select id="stress"><option value="선택안함">선택</option><option>매우 높음</option><option>높음</option><option>보통</option><option>낮음</option></select>
+
+            <div class="btn-group">
+                <button class="btn btn-blue" onclick="saveCustomer()">데이터 전송 완료</button>
+                <button class="btn btn-gray" onclick="location.reload()">리셋</button>
+            </div>
         </div>
     </section>
 
     <section id="consult" class="view-section">
         <div class="card no-print">
-            <h2>대기 고객 목록</h2>
-            <div id="recent-list"></div>
+            <h2>상담 대기 고객 (최근 접수순)</h2>
+            <div id="recent-list"><p style="color:#999;">접수된 고객이 없습니다.</p></div>
         </div>
 
         <div id="consult-area" style="display:none;">
             <div class="card no-print">
-                <h2>인바디 지표 입력</h2>
+                <h2 id="targetDisplay">분석 지표 입력</h2>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                     <input type="number" id="weight" placeholder="체중(kg)">
                     <input type="number" id="phaseAngle" placeholder="위상각(°)">
+                    <input type="number" id="fatPct" placeholder="체지방률(%)">
+                    <input type="number" id="water" placeholder="체수분(L)">
                 </div>
-                <button class="btn" onclick="generateReport()">최종 분석 리포트 발행</button>
+                <button class="btn btn-blue" onclick="generateReport()">통합 분석 리포트 발행</button>
             </div>
 
-            <div id="final-report" class="card" style="display:none;">
-                <h1 style="text-align:center; font-size: 22px; border-bottom: 2px solid #333; padding-bottom: 10px;">천일도+ 체질 분석 리포트</h1>
+            <div id="final-report" class="result-box">
+                <div style="text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 25px;">
+                    <h1 style="margin:0; font-size: 26px;">천일도+ 체질 분석 리포트</h1>
+                    <p id="res-info" style="font-size: 16px; margin-top: 10px; font-weight: bold;"></p>
+                </div>
+
                 <div class="saju-grid" id="saju-display"></div>
-                <div id="graph-area"></div>
+                <div id="graph-area" style="margin: 20px 0;"></div>
                 <div id="health-ment" class="health-tip"></div>
                 
-                <div id="res-code" style="background:var(--화); color:white; padding:15px; border-radius:10px; text-align:center; font-weight:bold; font-size:20px; margin:15px 0;"></div>
-                
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                    <div style="background:#fff5eb; padding:15px; border-radius:10px; border:1px solid #fbd38d;"><strong>🍵 웰컴 부스터</strong><br><span id="res-tea"></span></div>
-                    <div style="background:#fffbe6; padding:15px; border-radius:10px; border:1px solid #ffe58f;"><strong>🔮 마음 습관</strong><br><span id="res-mind"></span></div>
+                <div id="res-code" style="background:var(--화); color:white; padding:15px; border-radius:10px; text-align:center; font-weight:bold; font-size:20px; margin-bottom: 20px;"></div>
+
+                <div class="info-grid">
+                    <div class="item-card" style="background: #fff5eb;"><strong>🍵 웰컴 부스터</strong><br><span id="res-tea"></span></div>
+                    <div class="item-card" style="background: #fffbe6;"><strong>🔮 마음 습관</strong><br><span id="res-mind"></span></div>
                 </div>
 
                 <div class="atomy-box">
-                    <strong style="color:#2980b9;">💊 오행 맞춤 애터미 영양 처방</strong><br>
-                    <span id="res-atomy" style="font-size: 16px; font-weight: 500;"></span>
+                    <strong style="color:var(--화);">💊 오행 맞춤 애터미 영양 처방</strong><br>
+                    <span id="res-atomy" style="font-size: 16px; font-weight: 500; display: block; margin-top: 5px;"></span>
                 </div>
 
-                <div style="background:#f8f9fa; padding:15px; border-radius:10px; border:1px solid #ddd; margin-top:15px;">
-                    <strong>💡 원장님 전문 소견</strong><br><span id="res-ment"></span>
+                <div class="item-card" style="border-left: 5px solid var(--secondary); background: #eef7ff;">
+                    <strong>💡 송은숙 원장님의 전문 진단</strong><br><span id="res-ment"></span>
                 </div>
 
-                <button class="btn no-print" onclick="window.print()">🖨️ 리포트 인쇄하기</button>
+                <div style="text-align:center; margin-top:40px; font-weight:bold; font-size: 18px;">"체온 1도가 당신의 운명을 바꿉니다."</div>
+                <button class="btn btn-gray no-print" onclick="window.print()" style="margin-top:20px;">🖨️ 리포트 인쇄하기</button>
             </div>
         </div>
     </section>
 </div>
 
 <script>
-    // Firebase 설정 (원장님 기존 설정 유지)
     const firebaseConfig = { apiKey: "AIzaSyAUucRqU8nciqkINbjZcUUHx3UkR_OOprs", authDomain: "cheon1do-plus.firebaseapp.com", projectId: "cheon1do-plus", storageBucket: "cheon1do-plus.firebasestorage.app", messagingSenderId: "344900999016", appId: "1:344900999016:web:a20ef3b01df68ca03928dd" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
@@ -100,20 +133,113 @@
 
     function showTab(t) {
         document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         document.getElementById(t).classList.add('active');
+        document.getElementById(t === 'register' ? 'nav-reg' : 'nav-con').classList.add('active');
         if(t === 'consult') loadRecentCustomers();
     }
 
     async function saveCustomer() {
         const name = document.getElementById('name').value;
         const saju = document.getElementById('saju_ko').value;
-        if(!name || !saju) return alert("성함과 사주를 입력하세요.");
-        await db.collection("clients").add({ name, saju_ko: saju, createdAt: new Date() });
-        alert("접수 완료! 상담실로 이동합니다."); showTab('consult');
+        if(!name || !saju) return alert("성함과 사주를 입력해주세요.");
+        
+        const data = {
+            name, gender: document.getElementById('gender').value,
+            phone: document.getElementById('phone').value,
+            saju_ko: saju,
+            survey: {
+                mainSymptom: document.getElementById('mainSymptom').value,
+                coldHeat: document.getElementById('coldHeat').value,
+                stress: document.getElementById('stress').value
+            },
+            createdAt: new Date()
+        };
+        await db.collection("clients").add(data);
+        alert("🎉 " + name + "님 접수 완료! 전문 상담실로 이동합니다.");
+        showTab('consult');
     }
 
     async function loadRecentCustomers() {
         const snap = await db.collection("clients").orderBy("createdAt", "desc").limit(5).get();
-        const list = document.getElementById('recent-list');
-        list.innerHTML = "";
+        const listDiv = document.getElementById('recent-list');
+        listDiv.innerHTML = "";
+        if(snap.empty) { listDiv.innerHTML = "<p>접수된 고객이 없습니다.</p>"; return; }
         snap.forEach(doc => {
+            const d = doc.data();
+            const time = d.createdAt ? d.createdAt.toDate().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : "";
+            const btn = document.createElement('button');
+            btn.className = "btn-list";
+            btn.innerHTML = `<span>${d.name}(${d.gender})</span> <span>${time} 접수</span>`;
+            btn.onclick = () => { 
+                currentCustomer = d; 
+                document.getElementById('consult-area').style.display = 'block';
+                document.getElementById('final-report').style.display = 'none';
+                document.getElementById('targetDisplay').innerText = d.name + " 님 인바디 입력";
+            };
+            listDiv.appendChild(btn);
+        });
+    }
+
+    const sajuMap = { '신':'辛','해':'亥','기':'己','임':'壬','인':'寅','유':'酉','자':'子','축':'丑','병':'丙','정':'丁','무':'戊','경':'庚','을':'乙','갑':'甲','계':'癸','미':'未','술':'戌','진':'辰','사':'巳','오':'午','묘':'卯' };
+    const sajuColor = { '辛':'금','庚':'금','酉':'금','申':'금','壬':'수','癸':'수','亥':'수','子':'수','甲':'목','乙':'목','寅':'목','卯':'목','丙':'화','丁':'화','巳':'화','午':'화','戊':'토','己':'토','辰':'토','戌':'토','丑':'토','未':'토' };
+
+    function generateReport() {
+        const sajuParts = currentCustomer.saju_ko.split(' ');
+        const hanjas = sajuParts.map(k => sajuMap[k] || k);
+        const counts = { '목':0, '화':0, '토':0, '금':0, '수':0 };
+        hanjas.forEach(h => { if(sajuColor[h]) counts[sajuColor[h]]++; });
+
+        // 사주카드 표시
+        const sajuOrder = ['시주','일주','월주','년주'];
+        document.getElementById('saju-display').innerHTML = sajuOrder.map((label, i) => `
+            <div class="saju-box">
+                <div class="saju-label">${label}</div>
+                <div class="saju-char" style="color:var(--${sajuColor[hanjas[i*2]]})">${hanjas[i*2] || '-'}</div>
+                <div class="saju-char" style="color:var(--${sajuColor[hanjas[i*2+1]]})">${hanjas[i*2+1] || '-'}</div>
+            </div>`).join('');
+
+        // 그래프 표시
+        document.getElementById('graph-area').innerHTML = Object.entries(counts).map(([name, count]) => {
+            const pct = (count/8)*100;
+            return `<div style="display:flex; justify-content:space-between; font-size:13px; font-weight:bold;"><span>${name}</span><span>${Math.round(pct)}%</span></div>
+                    <div class="bar-container"><div class="bar-fill" style="width:${pct}%; background:var(--${name})"></div></div>`;
+        }).join('');
+
+        const maxGi = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+        let hMent = "", pRec = "", mind = "";
+        
+        if(maxGi === '수') { 
+            hMent = "💧 <b>수(水) 기운 과다:</b> 신장과 하체 순환이 약해지기 쉬우며 몸이 차고 붓는 수독 정체를 주의해야 합니다. 심부 온도를 높여 냉기를 몰아내는 것이 최우선입니다."; 
+            pRec = "헤모힘, 홍삼단, 보이차, 유산균";
+            mind = "혼자 참는 습관이 몸을 붓게 합니다. 오늘은 모든 고민을 땀과 함께 배출하세요.";
+        } else if(maxGi === '화') { 
+            hMent = "🔥 <b>화(火) 기운 과다:</b> 심장 열감이 위로 올라와 두통이나 가슴 답답함을 유발할 수 있습니다. 상기되는 열을 내리고 혈행을 돕는 관리가 필요합니다."; 
+            pRec = "오메가3, 락티움, 칼마디, 비타민C";
+            mind = "조급한 마음을 내려놓으세요. 천천히 호흡하는 것만으로도 운의 흐름이 바뀝니다.";
+        } else if(maxGi === '토') { 
+            hMent = "⛰️ <b>토(土) 기운 과다:</b> 기혈 정체가 쉽게 일어나 소화 불량이나 만성 무기력증이 올 수 있습니다. 효소로 위장 운동을 돕고 활동량을 늘려야 합니다."; 
+            pRec = "파인자임, 유산균, 차전자피, 헤모힘";
+            mind = "완벽하려는 생각을 비우세요. 뇌를 쉬게 해야 위장도 편안하게 움직입니다.";
+        } else if(maxGi === '목') { 
+            hMent = "🌳 <b>목(木) 기운 과다:</b> 간 기운이 뭉치기 쉬워 근육이 딱딱해지고 피로도가 높습니다. 근육 긴장을 해소하고 해독을 돕는 처방이 효과적입니다."; 
+            pRec = "밀크씨슬, 비타민B 컴플렉스, 홍경천 밀크씨슬";
+            mind = "책임감을 잠시 내려놓으세요. 어깨의 짐을 덜어야 새로운 복이 들어옵니다.";
+        } else { 
+            hMent = "⚔️ <b>금(金) 기운 과다:</b> 호흡기와 피부 건조를 주의해야 합니다. 면역력을 높여 기관지를 보호하고 체내 수분 밸런스를 맞추는 것이 중요합니다."; 
+            pRec = "노니, 비타민C, 스피루리나, 루테인";
+            mind = "외부 자극에 예민한 마음을 다독이세요. 내면의 중심을 세우는 것이 건강의 시작입니다.";
+        }
+
+        document.getElementById('res-info').innerText = `${currentCustomer.name} (${currentCustomer.gender}) / ${currentCustomer.phone}`;
+        document.getElementById('health-ment').innerHTML = hMent;
+        document.getElementById('res-atomy').innerText = pRec;
+        document.getElementById('res-code').innerText = maxGi === '수' ? "S3R 순환정체형 (체질부종)" : "오행 밸런스 조정형";
+        document.getElementById('res-tea').innerText = "심부 온도를 깨워 기혈 순환을 돕는 홍삼단 온수 처방";
+        document.getElementById('res-mind').innerText = mind;
+        document.getElementById('res-ment').innerText = `위상각 ${document.getElementById('phaseAngle').value}° 진단 결과, ${currentCustomer.survey.mainSymptom} 완화를 위해 심부 온열 관리가 적극 추천됩니다.`;
+        document.getElementById('final-report').style.display = 'block';
+    }
+</script>
+</body>
+</html>
