@@ -1,177 +1,236 @@
-<!doctype html>
-<html lang="ko" class="h-full">
+<!DOCTYPE html>
+<html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>체온1도씨플러스 상담앱 Pro</title>
-  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700;900&display=swap" rel="stylesheet">
-  <style>
-    * { font-family: 'Noto Sans KR', sans-serif; }
-    @media print { .no-print { display: none !important; } #print-area { width: 100%; margin: 0; padding: 10mm; } }
-    .fade-in { animation: fadeIn 0.5s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>체온1도씨 v7.0</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
 </head>
-<body class="bg-slate-50 h-full">
-  <div id="root"></div>
-  <script type="text/babel">
-    const { useState, useMemo, useEffect } = React;
-    const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } = Recharts;
 
-    const KOR_TO_HANJA = { "갑": "甲", "을": "乙", "병": "丙", "정": "丁", "무": "戊", "기": "己", "경": "庚", "신": "辛", "임": "壬", "계": "癸", "자": "子", "축": "丑", "인": "寅", "묘": "卯", "진": "辰", "사": "巳", "오": "午", "미": "未", "신": "申", "유": "酉", "술": "戌", "해": "亥" };
-    const STEM_EL = { 甲: "wood", 乙: "wood", 丙: "fire", 丁: "fire", 戊: "earth", 己: "earth", 庚: "metal", 辛: "metal", 壬: "water", 癸: "water" };
-    const BRANCH_EL = { 子: "water", 亥: "water", 寅: "wood", 卯: "wood", 巳: "fire", 午: "fire", 辰: "earth", 戌: "earth", 丑: "earth", 未: "earth", 申: "metal", 酉: "metal" };
-    const EL_COLOR = { wood: "#16a34a", fire: "#dc2626", earth: "#a16207", metal: "#64748b", water: "#2563eb" };
-    const EL_LABEL = { wood: "목(木)", fire: "화(火)", earth: "토(土)", metal: "금(金)", water: "수(수)" };
+<body class="bg-gray-100">
+<div id="root"></div>
 
-    const getPAStatus = (pa) => {
-      const val = parseFloat(pa);
-      if (!val) return { label: "미측정", color: "#94a3b8", text: "데이터 없음" };
-      if (val >= 6.0) return { label: "세포 활력 우수", color: "#16a34a", text: "세포가 매우 젊고 건강한 상태입니다." };
-      if (val >= 5.0) return { label: "세포 활력 보통", color: "#ca8a04", text: "정상 범위이나 꾸준한 관리가 필요합니다." };
-      return { label: "세포 활력 주의", color: "#dc2626", text: "세포 활성도가 낮아 집중 케어가 시급합니다." };
-    };
+<script type="text/babel">
 
-    function App() {
-      const [step, setStep] = useState(1);
-      const [name, setName] = useState("");
-      const [phone, setPhone] = useState("");
-      const [sajuRaw, setSajuRaw] = useState("");
-      const [inbody, setInbody] = useState({ weight: "", muscle: "", phaseAngle: "", fatPct: "" });
-      const [records, setRecords] = useState([]);
+const { useState, useEffect } = React;
+const { initializeApp } = firebase;
+const { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc } = firebase.firestore;
 
-      useEffect(() => {
-        const saved = JSON.parse(localStorage.getItem('ht_records') || '[]');
-        setRecords(saved);
-        lucide.createIcons();
-      }, []);
+/* ================= Firebase 설정 ================= */
 
-      useEffect(() => { lucide.createIcons(); }, [step]);
+const firebaseConfig = {
+  apiKey: "AIzaSyAAGeQ1vJ-guHZSNzsIJ4aUYiTbzVwdAdQ",
+  authDomain: "cheon1do-plus.firebaseapp.com",
+  projectId: "cheon1do-plus",
+  storageBucket: "cheon1do-plus.firebasestorage.app",
+  messagingSenderId: "344900999016",
+  appId: "1:344900999016:web:a20ef3b01df68ca03928dd",
+  measurementId: "G-MWCH1M7B33"
+};
 
-      const chartData = useMemo(() => {
-        const history = records
-          .filter(r => r.name === name && r.phone === phone)
-          .map(r => ({ date: r.date, weight: parseFloat(r.inbody.weight), muscle: parseFloat(r.inbody.muscle), pa: parseFloat(r.inbody.phaseAngle) }));
-        const current = { date: '오늘', weight: parseFloat(inbody.weight), muscle: parseFloat(inbody.muscle), pa: parseFloat(inbody.phaseAngle) };
-        return [...history, current].filter(d => !isNaN(d.weight)).sort((a,b) => new Date(a.date) - new Date(b.date));
-      }, [records, name, phone, inbody, step]);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-      const handleSave = () => {
-        const newRecord = { id: Date.now(), name, phone, sajuRaw, inbody, date: new Date().toLocaleDateString('ko-KR', {month:'short', day:'numeric'}) };
-        const updated = [newRecord, ...records];
-        setRecords(updated);
-        localStorage.setItem('ht_records', JSON.stringify(updated));
-        alert("✅ 고객 상담 기록이 저장되었습니다.");
-      };
+/* ================= 오행 기본 ================= */
 
-      return (
-        <div className="max-w-3xl mx-auto p-4 md:p-8">
-          <header className="mb-8 flex justify-between items-end no-print">
-            <div><h1 className="text-2xl font-black text-slate-800 tracking-tight">체온1도씨플러스 Pro</h1><p className="text-slate-400 text-xs font-bold">인바디 누적 분석 리포트</p></div>
-            <div className="flex gap-1">{[1, 2, 3].map(n => (<div key={n} className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${step >= n ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-400'}`}>{n}</div>))}</div>
-          </header>
+const STEM_EL = {
+  갑:"wood", 을:"wood",
+  병:"fire", 정:"fire",
+  무:"earth", 기:"earth",
+  경:"metal", 신:"metal",
+  임:"water", 계:"water"
+};
 
-          {step === 1 && (
-            <div className="bg-white rounded-[32px] p-8 shadow-sm border border-slate-100 fade-in space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-[10px] font-black text-slate-400 mb-1 pl-1 uppercase">Name</label><input value={name} onChange={e=>setName(e.target.value)} className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-blue-500 font-bold" placeholder="고객명"/></div>
-                <div><label className="block text-[10px] font-black text-slate-400 mb-1 pl-1 uppercase">Phone</label><input value={phone} onChange={e=>setPhone(e.target.value)} className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-blue-500 font-bold" placeholder="010-0000-0000"/></div>
-              </div>
-              <div><label className="block text-[10px] font-black text-slate-400 mb-1 pl-1 uppercase">Saju</label><input value={sajuRaw} onChange={e=>setSajuRaw(e.target.value)} className="w-full p-4 bg-slate-100 rounded-2xl font-bold text-xl" placeholder="신해 기해 임인 기유"/></div>
-              <button onClick={()=>setStep(2)} className="w-full py-5 bg-blue-600 text-white rounded-3xl font-bold text-xl shadow-lg shadow-blue-100 active:scale-[0.98] transition-all">다음 단계로 →</button>
-            </div>
-          )}
+const BRANCH_EL = {
+  자:"water", 해:"water",
+  인:"wood", 묘:"wood",
+  사:"fire", 오:"fire",
+  진:"earth", 술:"earth", 축:"earth", 미:"earth",
+  신:"metal", 유:"metal"
+};
 
-          {step === 2 && (
-            <div className="bg-white rounded-[32px] p-8 shadow-sm border border-slate-100 fade-in">
-              <h2 className="font-black text-xl mb-8 flex items-center gap-2"><i data-lucide="activity" className="text-blue-600"></i> 인바디 수치 입력</h2>
-              <div className="grid grid-cols-2 gap-6 mb-10">
-                {[['weight','몸무게(kg)'],['muscle','근육량(kg)'],['phaseAngle','위상각(°)'],['fatPct','체지방률(%)']].map(([k,l])=>(
-                  <div key={k}><label className="block text-[10px] font-black text-slate-400 mb-2 uppercase pl-1">{l}</label><input type="number" step="0.1" inputMode="decimal" value={inbody[k]} onChange={e=>setInbody({...inbody,[k]:e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold text-2xl outline-none focus:ring-2 ring-blue-500"/></div>
-                ))}
-              </div>
-              <div className="flex gap-3">
-                <button onClick={()=>setStep(1)} className="flex-1 py-5 bg-slate-100 rounded-3xl font-bold text-slate-400">이전</button>
-                <button onClick={()=>setStep(3)} className="flex-[2] py-5 bg-blue-600 text-white rounded-3xl font-bold text-xl shadow-lg active:scale-[0.98] transition-all">리포트 확인 →</button>
-              </div>
-            </div>
-          )}
+const CODE_MAP = { wood:"W", fire:"H", earth:"T", metal:"M", water:"S" };
 
-          {step === 3 && (
-            <div className="space-y-6 fade-in">
-              <div className="flex gap-2 no-print">
-                <button onClick={()=>setStep(2)} className="flex-1 p-4 bg-white border border-slate-200 rounded-2xl font-bold text-slate-400">수정</button>
-                <button onClick={handleSave} className="flex-1 p-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100">기록 저장</button>
-                <button onClick={()=>window.print()} className="px-6 py-4 bg-slate-900 text-white rounded-2xl shadow-lg"><i data-lucide="printer"></i></button>
-              </div>
+/* ================= 앱 ================= */
 
-              <div id="print-area" className="bg-white rounded-[48px] p-10 shadow-2xl border border-slate-50">
-                <div className="flex justify-between items-end border-b-2 border-slate-100 pb-8 mb-10">
-                  <div><h2 className="text-3xl font-black tracking-tighter">분석 리포트</h2><p className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-widest">Body Health Analysis Report</p></div>
-                  <div className="text-right"><span className="text-blue-600 font-black text-2xl">{name}</span><span className="text-slate-900 font-bold ml-1">고객님</span><p className="text-slate-300 text-[10px] mt-1 font-bold tracking-tighter">{new Date().toLocaleDateString()}</p></div>
-                </div>
+function App(){
 
-                {chartData.length > 1 && (
-                  <div className="mb-12 p-8 bg-slate-50 rounded-[40px] border border-slate-100">
-                    <h3 className="text-xs font-black mb-6 flex items-center gap-2 uppercase tracking-tighter text-slate-400"><i data-lucide="trending-up" className="w-4 h-4"></i> 인바디 누적 변화 추이</h3>
-                    <div className="h-[220px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                          <XAxis dataKey="date" tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} axisLine={false} tickLine={false} />
-                          <YAxis hide domain={['auto', 'auto']} />
-                          <Tooltip contentStyle={{borderRadius:'20px', border:'none', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)'}} />
-                          <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{paddingBottom: '20px', fontSize: '10px', fontWeight: 'bold'}} />
-                          <Line type="monotone" dataKey="weight" name="체중" stroke="#cbd5e1" strokeWidth={4} dot={{r:5, fill:'#cbd5e1', strokeWidth:0}} activeDot={{r:7}} />
-                          <Line type="monotone" dataKey="muscle" name="근육" stroke="#2563eb" strokeWidth={4} dot={{r:5, fill:'#2563eb', strokeWidth:0}} />
-                          <Line type="monotone" dataKey="pa" name="위상각" stroke="#dc2626" strokeWidth={4} dot={{r:5, fill:'#dc2626', strokeWidth:0}} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                )}
+  const [mode,setMode] = useState("front");
+  const [name,setName] = useState("");
+  const [birth,setBirth] = useState("");
+  const [saju,setSaju] = useState("");
+  const [clients,setClients] = useState([]);
+  const [selected,setSelected] = useState(null);
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-                  <div className="p-10 bg-slate-900 rounded-[40px] text-white shadow-xl shadow-slate-200">
-                    <div className="text-[10px] text-blue-400 font-black mb-1 uppercase tracking-widest">Phase Angle</div>
-                    <div className="text-5xl font-black mb-4 tracking-tighter">{inbody.phaseAngle || '0.0'}<span className="text-xl ml-1 opacity-50">°</span></div>
-                    <div className="inline-block px-4 py-1.5 rounded-full text-[10px] font-black tracking-tighter mb-6" style={{backgroundColor: getPAStatus(inbody.phaseAngle).color + '33', color: getPAStatus(inbody.phaseAngle).color}}>
-                      {getPAStatus(inbody.phaseAngle).label}
-                    </div>
-                    <p className="text-slate-400 text-[11px] leading-relaxed font-medium">{getPAStatus(inbody.phaseAngle).text}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-6 bg-slate-50 rounded-[32px] border border-slate-100 flex flex-col justify-center items-center">
-                      <div className="text-[10px] font-black text-slate-400 mb-2 uppercase">Fat %</div>
-                      <div className="text-2xl font-black tracking-tighter">{inbody.fatPct || '0'}<span className="text-sm ml-0.5 opacity-30">%</span></div>
-                    </div>
-                    <div className="p-6 bg-slate-50 rounded-[32px] border border-slate-100 flex flex-col justify-center items-center">
-                      <div className="text-[10px] font-black text-slate-400 mb-2 uppercase">Muscle</div>
-                      <div className="text-2xl font-black tracking-tighter">{inbody.muscle || '0'}<span className="text-sm ml-0.5 opacity-30">kg</span></div>
-                    </div>
-                  </div>
-                </div>
+  const [bodyFat,setBodyFat] = useState("");
+  const [muscle,setMuscle] = useState("");
+  const [bmr,setBmr] = useState("");
+  const [phase,setPhase] = useState("");
 
-                <div className="p-8 bg-blue-50 rounded-[40px] border border-blue-100/50">
-                  <h4 className="font-black text-xs mb-3 text-blue-900 flex items-center gap-2"><i data-lucide="shield-check" className="w-4 h-4"></i> 분석 전문가 가이드</h4>
-                  <p className="text-[11px] text-blue-700 leading-relaxed font-bold opacity-80">위상각 수치는 세포막의 건강도와 신체 활성 에너지를 나타냅니다. 체온 상승을 통한 혈류 개선과 맞춤 영양 솔루션으로 세포 에너지를 회복하는 것이 중요합니다.</p>
-                </div>
-              </div>
-              <button onClick={()=>{setStep(1); setName(""); setPhone(""); setInbody({weight:"", muscle:"", phaseAngle:"", fatPct:""});}} className="w-full py-6 text-slate-300 font-black text-xs uppercase tracking-widest no-print hover:text-slate-400 transition-colors">+ New Analysis</button>
-            </div>
-          )}
+  useEffect(()=>{
+    const unsub = firebase.firestore()
+      .collection("clients")
+      .where("status","==","waiting")
+      .onSnapshot(snapshot=>{
+        const list=[];
+        snapshot.forEach(doc=>{
+          list.push({id:doc.id,...doc.data()});
+        });
+        setClients(list);
+      });
+    return ()=>unsub();
+  },[]);
+
+  /* ===== 체질코드 계산 ===== */
+
+  function getCode(){
+    if(!saju) return null;
+    const counts={wood:0,fire:0,earth:0,metal:0,water:0};
+    const chars=saju.split("");
+    chars.forEach(c=>{
+      if(STEM_EL[c]) counts[STEM_EL[c]]++;
+      if(BRANCH_EL[c]) counts[BRANCH_EL[c]]++;
+    });
+    let weakest="wood"; let min=99;
+    Object.keys(counts).forEach(el=>{
+      if(counts[el]<min){min=counts[el]; weakest=el;}
+    });
+    const percent=Math.round((counts[weakest]/8)*100);
+    const state = percent <=10 ? 2 : 3;
+    return CODE_MAP[weakest] + state + "M";
+  }
+
+  async function handleRegister(){
+    if(!name || !birth) return alert("정보 입력");
+    await firebase.firestore().collection("clients").add({
+      name,
+      birth,
+      status:"waiting",
+      createdAt: new Date()
+    });
+    setName(""); setBirth("");
+    alert("접수 완료");
+  }
+
+  async function completeConsult(){
+    if(!selected) return;
+    const code = getCode();
+    await firebase.firestore().collection("clients").doc(selected.id).update({
+      saju,
+      bodyFat,
+      muscle,
+      bmr,
+      phase,
+      code,
+      status:"complete",
+      completedAt: new Date()
+    });
+    setSelected(null);
+    alert("상담 저장 완료");
+  }
+
+  return(
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+
+      <div className="flex gap-4">
+        <button onClick={()=>setMode("front")}
+          className="bg-blue-500 text-white px-4 py-2 rounded">
+          접수모드
+        </button>
+        <button onClick={()=>setMode("consult")}
+          className="bg-gray-700 text-white px-4 py-2 rounded">
+          상담모드
+        </button>
+      </div>
+
+      {mode==="front" && (
+        <div className="bg-white p-6 rounded shadow space-y-4">
+          <h2 className="text-xl font-bold">고객 접수</h2>
+          <input placeholder="이름"
+            value={name}
+            onChange={e=>setName(e.target.value)}
+            className="border p-2 w-full rounded"/>
+          <input placeholder="생년월일시 (예: 1990-01-01 10:30)"
+            value={birth}
+            onChange={e=>setBirth(e.target.value)}
+            className="border p-2 w-full rounded"/>
+          <button onClick={handleRegister}
+            className="bg-blue-600 text-white px-4 py-2 rounded">
+            접수 저장
+          </button>
         </div>
-      );
-    }
+      )}
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
-  </script>
+      {mode==="consult" && (
+        <div className="grid md:grid-cols-2 gap-6">
+
+          <div className="bg-white p-4 rounded shadow">
+            <h3 className="font-bold mb-2">대기 고객</h3>
+            {clients.map(c=>(
+              <div key={c.id}
+                onClick={()=>setSelected(c)}
+                className="p-2 border mb-2 cursor-pointer hover:bg-gray-100">
+                {c.name}
+              </div>
+            ))}
+          </div>
+
+          {selected && (
+            <div className="bg-white p-4 rounded shadow space-y-3">
+              <h3 className="font-bold">{selected.name} 상담</h3>
+
+              <input placeholder="사주 원국"
+                value={saju}
+                onChange={e=>setSaju(e.target.value)}
+                className="border p-2 w-full rounded"/>
+
+              <input placeholder="체지방%"
+                value={bodyFat}
+                onChange={e=>setBodyFat(e.target.value)}
+                className="border p-2 w-full rounded"/>
+
+              <input placeholder="골격근량"
+                value={muscle}
+                onChange={e=>setMuscle(e.target.value)}
+                className="border p-2 w-full rounded"/>
+
+              <input placeholder="기초대사량"
+                value={bmr}
+                onChange={e=>setBmr(e.target.value)}
+                className="border p-2 w-full rounded"/>
+
+              <input placeholder="위상각"
+                value={phase}
+                onChange={e=>setPhase(e.target.value)}
+                className="border p-2 w-full rounded"/>
+
+              <div className="font-bold">
+                체질코드: {getCode()}
+              </div>
+
+              <button onClick={completeConsult}
+                className="bg-green-600 text-white px-4 py-2 rounded">
+                상담 완료 저장
+              </button>
+            </div>
+          )}
+
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+
+</script>
 </body>
 </html>
