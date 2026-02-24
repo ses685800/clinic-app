@@ -1,94 +1,129 @@
-ㅍ<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>체온1도씨+ 통합 관리 시스템 v2.5</title>
+    <title>천일도+ 통합 관리 시스템 v3.0</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #2c3e50; --secondary: #3498db; --accent: #e74c3c; --bg: #f8f9fa; --gold: #d4af37; }
+        :root { --primary: #2c3e50; --secondary: #3498db; --accent: #e74c3c; --bg: #f8f9fa; }
         body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); margin: 0; padding: 0; color: #333; }
         nav { background: var(--primary); color: white; padding: 15px; display: flex; gap: 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .nav-item { cursor: pointer; padding: 10px 20px; border-radius: 5px; }
+        .nav-item { cursor: pointer; padding: 10px 20px; border-radius: 5px; font-weight: bold; }
         .nav-item.active { background: var(--secondary); }
         .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
         .card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 20px; }
-        h2 { color: var(--primary); border-left: 6px solid var(--secondary); padding-left: 12px; margin-top: 0; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; margin-bottom: 10px; }
+        h2 { color: var(--primary); border-left: 6px solid var(--secondary); padding-left: 12px; margin-top: 0; font-size: 20px; }
+        .q-text { font-weight: 500; margin-bottom: 8px; color: #444; display: block; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; margin-bottom: 15px; background: #fff; }
         .btn { background: var(--secondary); color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; font-size: 16px; width: 100%; font-weight: bold; transition: 0.3s; }
         .btn:hover { background: #2980b9; }
-        .btn-print { background: #27ae60; margin-top: 20px; }
+        .btn-list { background: #34495e; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-list:hover { background: #2c3e50; }
+        .time-label { font-size: 12px; opacity: 0.8; font-weight: normal; }
         .view-section { display: none; }
         .view-section.active { display: block; }
 
-        /* 리포트 레이아웃 */
-        .result-box { background: #fff; border: 3px solid var(--primary); padding: 40px; border-radius: 20px; margin-top: 25px; position: relative; }
-        .saju-badge-container { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
-        .saju-badge { background: #fff; padding: 10px 15px; border-radius: 10px; font-size: 24px; font-weight: bold; border: 2px solid #eee; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); color: #2c3e50; }
-        .code-banner { background: var(--accent); color: white; padding: 15px; border-radius: 10px; text-align: center; font-size: 28px; font-weight: 800; margin: 20px 0; }
-        
-        .section-box { border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #eee; }
+        /* 리포트 및 출력 스타일 */
+        .result-box { background: #fff; border: 3px solid var(--primary); padding: 30px; border-radius: 20px; margin-top: 20px; line-height: 1.6; }
+        .saju-badge-container { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; }
+        .saju-badge { background: #fff; padding: 8px 12px; border-radius: 8px; font-size: 22px; font-weight: bold; border: 1px solid #ddd; }
+        .code-banner { background: var(--accent); color: white; padding: 15px; border-radius: 10px; text-align: center; font-size: 26px; font-weight: 800; margin: 15px 0; }
+        .section-box { border-radius: 12px; padding: 18px; margin-bottom: 15px; border: 1px solid #eee; }
         .habit-box { background: #fff9db; border: 2px solid #fab005; }
         .tea-box { background: #fdf2e9; border: 2px solid #f0b27a; }
-        .expert-box { background: #eef7ff; border: 2px solid #3498db; }
-        
-        .box-title { font-weight: bold; font-size: 19px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-        .info-card { background: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #eee; }
-        .footer-msg { text-align: center; font-weight: bold; font-size: 20px; border-top: 2px dashed #ddd; padding-top: 25px; color: var(--primary); margin-top: 30px; }
+        .box-title { font-weight: bold; font-size: 18px; margin-bottom: 8px; color: #d35400; }
+        .footer-msg { text-align: center; font-weight: bold; font-size: 18px; border-top: 2px dashed #ddd; padding-top: 20px; color: var(--primary); margin-top: 25px; }
 
         @media print {
-            nav, .btn, #search-area, .no-print, h2 { display: none !important; }
-            body { background: white; }
+            nav, .btn, .no-print, h2, #search-area { display: none !important; }
             .container { max-width: 100%; margin: 0; padding: 0; }
-            .result-box { border: 2px solid #000; padding: 20px; margin: 0; border-radius: 0; }
+            .result-box { border: 2px solid #000; border-radius: 0; }
         }
     </style>
 </head>
 <body>
 
 <nav>
-    <div class="nav-item active" onclick="showTab('register')">고객접수(문진)</div>
-    <div class="nav-item" onclick="showTab('consult')">상담실(분석)</div>
+    <div class="nav-item active" id="nav-reg" onclick="showTab('register')">1. 고객접수</div>
+    <div class="nav-item" id="nav-con" onclick="showTab('consult')">2. 상담실</div>
 </nav>
 
 <div class="container">
     <section id="register" class="view-section active">
         <div class="card">
-            <h2>신규 고객 등록</h2>
-            <input type="text" id="name" placeholder="성함">
+            <h2>신규 고객 문진</h2>
+            <input type="text" id="name" placeholder="고객 성함 입력">
             <input type="text" id="saju_ko" placeholder="사주원국 (예: 신해 기해 임인 기유)">
-            <p><strong>[체질 문진] 증상 강도 (1:낮음 ~ 5:높음)</strong></p>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                <div>목(W) 근육긴장 <select id="w_val"><option>1</option><option>3</option><option>5</option></select></div>
-                <div>화(H) 순환부족 <select id="h_val"><option>1</option><option>3</option><option>5</option></select></div>
-                <div>토(T) 소화정체 <select id="t_val"><option>1</option><option>3</option><option>5</option></select></div>
-                <div>금(M) 면역저하 <select id="m_val"><option>1</option><option>3</option><option>5</option></select></div>
-                <div>수(S) 부종냉증 <select id="s_val"><option>1</option><option>3</option><option>5</option></select></div>
-            </div>
-            <button class="btn" style="margin-top:20px;" onclick="saveCustomer()">데이터 전송</button>
+            
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+            
+            <label class="q-text">Q1. 목(W): 어깨나 목 근육이 자주 뻣뻣하게 뭉치시나요?</label>
+            <select id="w_val">
+                <option value="1">전혀 아니에요 (편안함)</option>
+                <option value="3" selected>가끔 그래요 (보통)</option>
+                <option value="5">너무 심해요 (불편함)</option>
+            </select>
+
+            <label class="q-text">Q2. 화(H): 얼굴로 열이 오르거나 가슴이 답답하고 두근거리시나요?</label>
+            <select id="h_val">
+                <option value="1">전혀 아니에요 (편안함)</option>
+                <option value="3" selected>가끔 그래요 (보통)</option>
+                <option value="5">너무 심해요 (불편함)</option>
+            </select>
+
+            <label class="q-text">Q3. 토(T): 속이 자주 더부룩하거나 생각이 많아 소화가 안 되시나요?</label>
+            <select id="t_val">
+                <option value="1">전혀 아니에요 (편안함)</option>
+                <option value="3" selected>가끔 그래요 (보통)</option>
+                <option value="5">너무 심해요 (불편함)</option>
+            </select>
+
+            <label class="q-text">Q4. 금(M): 감기에 자주 걸리거나 피부가 예민하고 건조하신 편인가요?</label>
+            <select id="m_val">
+                <option value="1">전혀 아니에요 (편안함)</option>
+                <option value="3" selected>가끔 그래요 (보통)</option>
+                <option value="5">너무 심해요 (불편함)</option>
+            </select>
+
+            <label class="q-text">Q5. 수(S): 몸이나 얼굴이 자주 붓고 손발이 차갑게 느껴지시나요?</label>
+            <select id="s_val">
+                <option value="1">전혀 아니에요 (편안함)</option>
+                <option value="3" selected>가끔 그래요 (보통)</option>
+                <option value="5">너무 심해요 (불편함)</option>
+            </select>
+
+            <button class="btn" onclick="saveCustomer()">데이터 전송 및 상담실로 보내기</button>
         </div>
     </section>
 
     <section id="consult" class="view-section">
-        <div class="card no-print" id="search-area">
-            <h2>고객 조회</h2>
-            <input type="text" id="searchName" placeholder="성함 입력">
-            <button class="btn" onclick="searchCustomer()">검색</button>
-            <div id="search-result" style="margin-top:15px;"></div>
+        <div class="card no-print">
+            <h2>오늘의 대기 고객 (최근 접수순)</h2>
+            <div id="recent-list" style="margin-bottom: 20px;">
+                <p style="color: #666; font-size: 14px;">접수된 고객이 없습니다.</p>
+            </div>
+            
+            <div id="search-area" style="border-top: 1px solid #eee; pt: 15px;">
+                <p style="font-size: 13px; color: #888;">예전 기록 찾기:</p>
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="searchName" placeholder="성함 입력" style="margin-bottom:0;">
+                    <button class="btn" style="width:100px; padding:10px;" onclick="searchCustomer()">검색</button>
+                </div>
+            </div>
         </div>
 
         <div id="consult-area" style="display:none;">
             <div class="card no-print">
-                <h2 id="targetName">분석 리포트 생성</h2>
+                <h2 id="targetDisplay">고객 분석 중...</h2>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                     <input type="number" id="in1" placeholder="전 인바디">
                     <input type="number" id="in2" placeholder="후 인바디">
                 </div>
-                <button class="btn" style="background:#27ae60; margin-top:10px;" onclick="generateReport()">통합 분석 및 출력 준비</button>
-                <button class="btn btn-print" onclick="window.print()">🖨️ 리포트 즉시 인쇄</button>
+                <button class="btn" style="background:#27ae60; margin-top:10px;" onclick="generateReport()">통합 분석 리포트 생성</button>
+                <button class="btn" style="background:#95a5a6; margin-top:10px;" onclick="window.print()">🖨️ 리포트 인쇄</button>
             </div>
 
             <div id="final-report" class="result-box" style="display:none;">
@@ -96,27 +131,22 @@
                 <div class="code-banner" id="res-code"></div>
 
                 <div class="section-box tea-box">
-                    <div class="box-title">🍵 오늘의 웰컴 부스터: 홍삼단 온수</div>
+                    <div class="box-title">🍵 웰컴 부스터: 홍삼단 온수</div>
                     <div id="res-tea"></div>
                 </div>
                 
                 <div class="section-box habit-box">
                     <div class="box-title">🔮 운명을 바꾸는 마음 습관</div>
-                    <div id="res-mind"></div>
+                    <div id="res-mind" style="font-size: 17px;"></div>
                 </div>
 
-                <div class="info-grid">
-                    <div class="info-card"><strong>🎯 테라피 처방</strong><br><span id="res-therapy"></span></div>
-                    <div class="info-card"><strong>💊 애터미 맞춤영양</strong><br><span id="res-atomy"></span></div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="section-box" style="background:#f8f9fa;"><strong>🎯 테라피 처방</strong><br><span id="res-therapy"></span></div>
+                    <div class="section-box" style="background:#f8f9fa;"><strong>💊 애터미 영양</strong><br><span id="res-atomy"></span></div>
                 </div>
 
-                <div class="info-grid" style="margin-top:0;">
-                    <div class="info-card"><strong>🥗 개운 식단</strong><br><span id="res-diet"></span></div>
-                    <div class="info-card"><strong>✨ 행동 개운법</strong><br><span id="res-gaewun"></span></div>
-                </div>
-
-                <div class="section-box expert-box">
-                    <div class="box-title">💡 송은숙 원장님의 전문 진단</div>
+                <div class="section-box" style="background:#eef7ff; border-color:#3498db;">
+                    <div class="box-title" style="color:#2980b9;">💡 송은숙 원장님의 전문 진단</div>
                     <div id="res-ment"></div>
                 </div>
 
@@ -134,46 +164,70 @@
 
     function showTab(t) {
         document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         document.getElementById(t).classList.add('active');
+        document.getElementById(t === 'register' ? 'nav-reg' : 'nav-con').classList.add('active');
+        if(t === 'consult') loadRecentCustomers();
     }
 
     async function saveCustomer() {
+        const name = document.getElementById('name').value;
+        if(!name) return alert("성함을 입력해주세요.");
         const scores = { W: document.getElementById('w_val').value, H: document.getElementById('h_val').value, T: document.getElementById('t_val').value, M: document.getElementById('m_val').value, S: document.getElementById('s_val').value };
-        await db.collection("clients").add({ name: document.getElementById('name').value, saju_ko: document.getElementById('saju_ko').value, scores, createdAt: new Date() });
-        alert("데이터 저장 완료!"); location.reload();
+        await db.collection("clients").add({ name, saju_ko: document.getElementById('saju_ko').value, scores, createdAt: new Date() });
+        
+        alert(name + "님 접수 완료! 상담실 목록에서 확인하세요.");
+        document.getElementById('name').value = "";
+        document.getElementById('saju_ko').value = "";
+        showTab('consult');
+    }
+
+    async function loadRecentCustomers() {
+        const snap = await db.collection("clients").orderBy("createdAt", "desc").limit(5).get();
+        const listDiv = document.getElementById('recent-list');
+        listDiv.innerHTML = "";
+        if(snap.empty) listDiv.innerHTML = "<p>대기 고객이 없습니다.</p>";
+        snap.forEach(doc => {
+            const data = doc.data();
+            const time = data.createdAt ? data.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "";
+            listDiv.innerHTML += `<button class="btn btn-list" onclick="selectCustomer('${doc.id}', '${data.name}', '${data.saju_ko}', ${JSON.stringify(data.scores)})">
+                <span>${data.name} 님</span> <span class="time-label">${time} 접수</span>
+            </button>`;
+        });
     }
 
     async function searchCustomer() {
         const snap = await db.collection("clients").where("name", "==", document.getElementById('searchName').value).get();
-        const resDiv = document.getElementById('search-result'); resDiv.innerHTML = "";
+        const listDiv = document.getElementById('recent-list');
+        listDiv.innerHTML = "<h4>검색 결과:</h4>";
         snap.forEach(doc => {
-            resDiv.innerHTML += `<button class="btn" style="background:#34495e; margin-bottom:5px;" onclick="selectCustomer('${doc.id}', '${doc.data().name}', '${doc.data().saju_ko}', ${JSON.stringify(doc.data().scores)})">${doc.data().name} 선택</button>`;
+            listDiv.innerHTML += `<button class="btn btn-list" onclick="selectCustomer('${doc.id}', '${doc.data().name}', '${doc.data().saju_ko}', ${JSON.stringify(doc.data().scores)})">${doc.data().name} 선택</button>`;
         });
     }
 
     function selectCustomer(id, name, saju, scores) {
         currentCustomer = { id, name, saju, scores };
-        document.getElementById('search-area').style.display = 'none';
         document.getElementById('consult-area').style.display = 'block';
+        document.getElementById('targetDisplay').innerText = name + "님 분석 리포트";
+        document.getElementById('final-report').style.display = 'none';
+        window.scrollTo(0, document.getElementById('consult-area').offsetTop);
     }
 
     const hanjaMap = {'신':'辛','해':'亥','기':'己','임':'壬','인':'寅','유':'酉','자':'子','축':'丑','병':'丙','정':'丁','무':'戊','경':'庚','을':'乙','갑':'甲','계':'癸','미':'未','술':'戌','진':'辰','사':'巳','오':'午','묘':'卯'};
 
     function generateReport() {
-        const saju = currentCustomer.saju;
         const s = currentCustomer.scores;
-        const maxO = Object.keys(s).reduce((a, b) => s[a] > s[b] ? a : b);
+        const maxO = Object.keys(s).reduce((a, b) => parseInt(s[a]) > parseInt(s[b]) ? a : b);
         let res = {};
 
-        // 핵심 로직: 홍삼단 멘트 및 운명습관 결합
         if(maxO === 'S') {
-            res = { code: "S3R 수정체 순환형", therapy: "온열 40분 + 웨이브 20분", atomy: "헤모힘, 오메가3, 보이차", diet: "검은콩, 해조류", gaewun: "반신욕, 머리 동쪽 취침", tea: "사주에 수독(水)이 많아 속이 냉합니다. 홍삼단의 따뜻한 성질로 속불을 지펴야 노폐물이 잘 빠집니다.", mind: "<b>[방출의 습관]</b> 혼자 참는 습관이 몸을 붓게 합니다. 오늘은 모든 고민을 땀과 함께 배출하세요.", ment: "기혈의 힘으로 수독을 밀어낼 때 진짜 순환이 시작됩니다." };
+            res = { code: "S3R 수정체 순환형", therapy: "온열 40분 + 웨이브 20분", atomy: "헤모힘, 오메가3, 보이차", tea: "사주에 수독(水)이 많아 속이 냉합니다. 홍삼단의 따뜻한 성질로 속불을 지펴야 노폐물이 잘 빠집니다.", mind: "<b>[방출의 습관]</b> 혼자 참는 습관이 몸을 붓게 합니다. 오늘은 모든 고민을 땀과 함께 배출하세요.", ment: "기혈의 힘으로 수독을 밀어낼 때 진짜 순환이 시작됩니다." };
         } else if(maxO === 'T') {
-            res = { code: "T3M 토정체 소화형", therapy: "온열 30분 + 웨이브 30분", atomy: "헤모힘, 유산균, 효소", diet: "단호박, 양배추", gaewun: "식후 명상, 노란색 소품", tea: "생각이 많아 정체된 기운을 홍삼의 온기로 깨워줍니다. 위장 운동을 돕는 마중물입니다.", mind: "<b>[비움의 습관]</b> 완벽하려는 생각이 위장을 멈추게 합니다. 뇌를 쉬게 하는 연습이 필요합니다.", ment: "속이 편안해지면 얼굴의 독소와 붓기가 자연스럽게 사라집니다." };
+            res = { code: "T3M 토정체 소화형", therapy: "온열 30분 + 웨이브 30분", atomy: "헤모힘, 유산균, 파인자임", tea: "생각이 많아 정체된 기운을 홍삼의 온기로 깨워줍니다. 위장 운동을 돕는 마중물입니다.", mind: "<b>[비움의 습관]</b> 완벽하려는 생각이 위장을 멈추게 합니다. 뇌를 쉬게 하는 연습이 필요합니다.", ment: "속이 편안해지면 얼굴의 독소와 붓기가 자연스럽게 사라집니다." };
         } else if(maxO === 'W') {
-            res = { code: "W1N 목과다 긴장형", therapy: "온열 40분 (저강도 이완)", atomy: "헤모힘, 칼마디, 락티움", diet: "녹색채소, 매실", gaewun: "숲 산책, 스트레칭", tea: "긴장된 간 기운을 부드럽게 이완시키는 홍삼 처방입니다. 몸을 유연하게 만들어줍니다.", mind: "<b>[이완의 습관]</b> 책임감을 잠시 내려놓으세요. 어깨의 짐을 덜어야 운의 통로가 열립니다.", ment: "긴장이 풀려야 체온이 오르고 면역세포가 활성화됩니다." };
+            res = { code: "W1N 목과다 긴장형", therapy: "온열 40분 (저강도 이완)", atomy: "헤모힘, 칼마디, 락티움", tea: "긴장된 간 기운을 부드럽게 이완시키는 홍삼 처방입니다. 몸을 유연하게 만들어줍니다.", mind: "<b>[이완의 습관]</b> 책임감을 잠시 내려놓으세요. 어깨의 짐을 덜어야 운의 통로가 열립니다.", ment: "긴장이 풀려야 체온이 오르고 면역세포가 활성화됩니다." };
         } else {
-            res = { code: "M2R 금허 면역형", therapy: "온열 40분 + 웨이브 20분", atomy: "헤모힘, 비타민C", diet: "도라지, 무", gaewun: "심호흡, 흰색 옷", tea: "약해진 방어 기운을 채우는 명품 홍삼차입니다. 심부 온도를 올려 면역력을 보호하세요.", mind: "<b>[보호의 습관]</b> 외부 자극에 예민한 기질입니다. 내면의 단단한 중심을 세우는 것이 우선입니다.", ment: "무너진 면역벽을 헤모힘과 온열로 다시 견고하게 세웁니다." };
+            res = { code: "M2R 금허 면역형", therapy: "온열 40분 + 웨이브 20분", atomy: "헤모힘, 비타민C, 유산균", tea: "약해진 방어 기운을 채우는 명품 홍삼차입니다. 심부 온도를 올려 면역력을 보호하세요.", mind: "<b>[보호의 습관]</b> 외부 자극에 예민한 기질입니다. 내면의 단단한 중심을 세우는 것이 우선입니다.", ment: "무너진 면역벽을 헤모힘과 온열로 다시 견고하게 세웁니다." };
         }
 
         document.getElementById('res-code').innerText = res.code;
@@ -181,11 +235,9 @@
         document.getElementById('res-mind').innerHTML = res.mind;
         document.getElementById('res-therapy').innerText = res.therapy;
         document.getElementById('res-atomy').innerText = res.atomy;
-        document.getElementById('res-diet').innerText = res.diet;
-        document.getElementById('res-gaewun').innerText = res.gaewun;
         document.getElementById('res-ment').innerText = res.ment;
 
-        const hanjaHTML = saju.split(' ').map(s => `<div class="saju-badge">${hanjaMap[s] || s}</div>`).join('');
+        const hanjaHTML = (currentCustomer.saju || "").split(' ').map(s => `<div class="saju-badge">${hanjaMap[s] || s}</div>`).join('');
         document.getElementById('saju-hanja').innerHTML = hanjaHTML;
         document.getElementById('final-report').style.display = 'block';
     }
