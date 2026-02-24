@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>천일도+ v4.1 - 오행 건강 리포트</title>
+    <title>천일도+ v4.2 전문 상담 시스템</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -26,6 +26,7 @@
         .view-section { display: none; }
         .view-section.active { display: block; }
         .btn { background: var(--secondary); color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; margin-top: 10px; }
+        .atomy-box { background: #eef7ff; border: 2px solid #3498db; padding: 15px; border-radius: 10px; margin-top: 15px; }
         @media print { .no-print { display: none !important; } .container { width: 100%; } .card { box-shadow: none; border: 1px solid #eee; } }
     </style>
 </head>
@@ -42,8 +43,7 @@
             <h2>고객 정보 및 문진</h2>
             <input type="text" id="name" placeholder="성함">
             <input type="text" id="saju_ko" placeholder="사주 (예: 신해 기해 임인 기유)">
-            <div id="survey-area"></div>
-            <button class="btn" onclick="saveCustomer()">전송 및 접수</button>
+            <button class="btn" onclick="saveCustomer()">데이터 전송 완료</button>
         </div>
     </section>
 
@@ -68,34 +68,35 @@
                 <div class="saju-grid" id="saju-display"></div>
                 <div id="graph-area"></div>
                 <div id="health-ment" class="health-tip"></div>
+                
                 <div id="res-code" style="background:var(--화); color:white; padding:15px; border-radius:10px; text-align:center; font-weight:bold; font-size:20px; margin:15px 0;"></div>
+                
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                    <div style="background:#fff5eb; padding:15px; border-radius:10px;"><strong>🍵 홍삼단 처방</strong><br><span id="res-tea"></span></div>
-                    <div style="background:#eef7ff; padding:15px; border-radius:10px;"><strong>💡 전문 소견</strong><br><span id="res-ment"></span></div>
+                    <div style="background:#fff5eb; padding:15px; border-radius:10px; border:1px solid #fbd38d;"><strong>🍵 웰컴 부스터</strong><br><span id="res-tea"></span></div>
+                    <div style="background:#fffbe6; padding:15px; border-radius:10px; border:1px solid #ffe58f;"><strong>🔮 마음 습관</strong><br><span id="res-mind"></span></div>
                 </div>
-                <button class="btn no-print" onclick="window.print()">인쇄하기</button>
+
+                <div class="atomy-box">
+                    <strong style="color:#2980b9;">💊 오행 맞춤 애터미 영양 처방</strong><br>
+                    <span id="res-atomy" style="font-size: 16px; font-weight: 500;"></span>
+                </div>
+
+                <div style="background:#f8f9fa; padding:15px; border-radius:10px; border:1px solid #ddd; margin-top:15px;">
+                    <strong>💡 원장님 전문 소견</strong><br><span id="res-ment"></span>
+                </div>
+
+                <button class="btn no-print" onclick="window.print()">🖨️ 리포트 인쇄하기</button>
             </div>
         </div>
     </section>
 </div>
 
 <script>
+    // Firebase 설정 (원장님 기존 설정 유지)
     const firebaseConfig = { apiKey: "AIzaSyAUucRqU8nciqkINbjZcUUHx3UkR_OOprs", authDomain: "cheon1do-plus.firebaseapp.com", projectId: "cheon1do-plus", storageBucket: "cheon1do-plus.firebasestorage.app", messagingSenderId: "344900999016", appId: "1:344900999016:web:a20ef3b01df68ca03928dd" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     let currentCustomer = null;
-
-    const QUESTIONS = [
-        { key:"main", label:"가장 불편한 곳", options:["목/어깨","허리","소화","냉증/부종"] },
-        { key:"cold", label:"평소 온도감", options:["춥다","덥다","열이올랐다식었다","보통"] }
-    ];
-
-    window.onload = () => {
-        const area = document.getElementById('survey-area');
-        QUESTIONS.forEach(q => {
-            area.innerHTML += `<label style="font-size:13px;color:#666;">${q.label}</label><select id="${q.key}"><option value="">선택</option>${q.options.map(o=>`<option value="${o}">${o}</option>`).join('')}</select>`;
-        });
-    };
 
     function showTab(t) {
         document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
@@ -108,7 +109,7 @@
         const saju = document.getElementById('saju_ko').value;
         if(!name || !saju) return alert("성함과 사주를 입력하세요.");
         await db.collection("clients").add({ name, saju_ko: saju, createdAt: new Date() });
-        alert("접수 완료!"); showTab('consult');
+        alert("접수 완료! 상담실로 이동합니다."); showTab('consult');
     }
 
     async function loadRecentCustomers() {
@@ -116,45 +117,3 @@
         const list = document.getElementById('recent-list');
         list.innerHTML = "";
         snap.forEach(doc => {
-            const btn = document.createElement('button');
-            btn.className = "btn"; btn.style.textAlign="left"; btn.style.background="#34495e";
-            btn.innerText = `${doc.data().name} 님 선택`;
-            btn.onclick = () => { currentCustomer = doc.data(); document.getElementById('consult-area').style.display='block'; };
-            list.appendChild(btn);
-        });
-    }
-
-    const sajuMap = { '신':'辛','해':'亥','기':'己','임':'壬','인':'寅','유':'酉','자':'子','축':'丑','병':'丙','정':'丁','무':'戊','경':'庚','을':'乙','갑':'甲','계':'癸','미':'未','술':'戌','진':'辰','사':'巳','오':'午','묘':'卯' };
-    const sajuColor = { '辛':'금','庚':'금','酉':'금','申':'금','壬':'수','癸':'수','亥':'수','子':'수','甲':'목','乙':'목','寅':'목','卯':'목','丙':'화','丁':'화','巳':'화','午':'화','戊':'토','己':'토','辰':'토','戌':'토','丑':'토','未':'토' };
-
-    function generateReport() {
-        const hanjas = currentCustomer.saju_ko.split(' ').map(k => sajuMap[k] || k);
-        const counts = { '목':0, '화':0, '토':0, '금':0, '수':0 };
-        hanjas.forEach(h => { if(sajuColor[h]) counts[sajuColor[h]]++; });
-
-        document.getElementById('saju-display').innerHTML = hanjas.map(h => `<div class="saju-box"><div class="saju-char" style="color:var(--${sajuColor[h]})">${h}</div></div>`).join('');
-        
-        document.getElementById('graph-area').innerHTML = Object.entries(counts).map(([name, count]) => {
-            const pct = (count/8)*100;
-            return `<div style="font-size:12px;">${name} (${Math.round(pct)}%)</div><div class="bar-container"><div class="bar-fill" style="width:${pct}%; background:var(--${name})"></div></div>`;
-        }).join('');
-
-        // ★ 오행 건강 멘트 자동 생성부
-        let healthMent = "";
-        const maxGi = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
-        
-        if(maxGi === '수') healthMent = "💧 <b>수(水) 기운 과다:</b> 신장과 하체 순환이 약해지기 쉬운 체질입니다. 몸이 쉽게 붓고 손발이 차가워지는 수독(水毒) 정체를 주의해야 하며, 따뜻한 온열 요법이 필수적입니다.";
-        else if(maxGi === '화') healthMent = "🔥 <b>화(火) 기운 과다:</b> 심장 열감이 위로 올라와 두통이나 가슴 답답함을 유발할 수 있습니다. 상기되는 열을 아래로 내리고 심신을 안정시키는 이완 테라피가 효과적입니다.";
-        else if(maxGi === '토') healthMent = "⛰️ <b>토(土) 기운 과다:</b> 기혈 정체가 쉽게 일어나 소화 불량이나 무기력증이 올 수 있습니다. 전신 순환을 돕는 웨이브 요법으로 막힌 기운을 뚫어주는 것이 중요합니다.";
-        else if(maxGi === '목') healthMent = "🌳 <b>목(木) 기운 과다:</b> 간 기운이 뭉치기 쉬워 어깨와 목 근육이 돌처럼 딱딱해지는 경향이 있습니다. 근육 긴장을 해소하고 피로를 풀어주는 관리가 시급합니다.";
-        else healthMent = "⚔️ <b>금(金) 기운 과다:</b> 호흡기와 피부가 건조해지기 쉽고 예민한 기질을 보일 수 있습니다. 면역력을 높이고 체내 수분 밸런스를 맞추는 체온 관리가 도움됩니다.";
-
-        document.getElementById('health-ment').innerHTML = healthMent;
-        document.getElementById('res-code').innerText = maxGi === '수' ? "S3R 순환정체형" : "체질 밸런스 조정형";
-        document.getElementById('res-tea').innerText = "심부 온도를 높여주는 홍삼단 온수 처방";
-        document.getElementById('res-ment').innerText = `위상각 ${document.getElementById('phaseAngle').value}°를 고려한 맞춤 테라피 제안`;
-        document.getElementById('final-report').style.display = 'block';
-    }
-</script>
-</body>
-</html>
