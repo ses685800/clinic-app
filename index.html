@@ -1,324 +1,194 @@
-<!doctype html>
+ㅍ<!DOCTYPE html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>체온1도씨플러스 상담앱</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>체온1도씨+ 통합 관리 시스템 v2.5</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
-      body { margin: 0; background: #f1f5f9; }
-      input, textarea, select, button { font-family: system-ui, sans-serif; }
-      button { cursor: pointer; }
-      @media print {
-        body { background: white; }
-        .no-print { display: none !important; }
-        .click-card:hover { background:#fff7ed; border-color:#fdba74 !important; }
-      }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
+        :root { --primary: #2c3e50; --secondary: #3498db; --accent: #e74c3c; --bg: #f8f9fa; --gold: #d4af37; }
+        body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); margin: 0; padding: 0; color: #333; }
+        nav { background: var(--primary); color: white; padding: 15px; display: flex; gap: 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .nav-item { cursor: pointer; padding: 10px 20px; border-radius: 5px; }
+        .nav-item.active { background: var(--secondary); }
+        .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
+        .card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        h2 { color: var(--primary); border-left: 6px solid var(--secondary); padding-left: 12px; margin-top: 0; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; margin-bottom: 10px; }
+        .btn { background: var(--secondary); color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; font-size: 16px; width: 100%; font-weight: bold; transition: 0.3s; }
+        .btn:hover { background: #2980b9; }
+        .btn-print { background: #27ae60; margin-top: 20px; }
+        .view-section { display: none; }
+        .view-section.active { display: block; }
 
-    <script type="text/babel">
-      const { useEffect, useMemo, useState } = React;
-
-      // 1. 파이어베이스 설정 (새로 발급받은 안전한 키 적용)
-      const firebaseConfig = {
-        apiKey: "AIzaSyAUucRqU8nciqkINbjZcUUHx3UkR_OOprs",
-        authDomain: "cheon1do-plus.firebaseapp.com",
-        projectId: "cheon1do-plus",
-        storageBucket: "cheon1do-plus.firebasestorage.app",
-        messagingSenderId: "344900999016",
-        appId: "1:344900999016:web:a20ef3b01df68ca03928dd",
-        measurementId: "G-MWCH1M7B33"
-      };
-
-      // --- [사주 데이터 및 상수 설정] ---
-      const STEM_KOR_TO_HANJA = { 갑:"甲", 을:"乙", 병:"丙", 정:"丁", 무:"戊", 기:"己", 경:"庚", 신:"辛", 임:"壬", 계:"癸" };
-      const BRANCH_KOR_TO_HANJA = { 자:"子", 축:"丑", 인:"寅", 묘:"卯", 진:"辰", 사:"巳", 오:"午", 미:"未", 신:"申", 유:"酉", 술:"戌", 해:"亥" };
-      const STEM_EL = { 甲:"wood",乙:"wood",丙:"fire",丁:"fire",戊:"earth",己:"earth",庚:"metal",辛:"metal",壬:"water",癸:"water" };
-      const BRANCH_EL = { 子:"water",亥:"water",寅:"wood",卯:"wood",巳:"fire",午:"fire",辰:"earth",戌:"earth",丑:"earth",未:"earth",申:"metal",酉:"metal" };
-
-      const EL_LABEL = { wood:"목(木)", fire:"화(火)", earth:"토(土)", metal:"금(金)", water:"수(水)" };
-      const EL_COLOR = { wood:"#16a34a", fire:"#dc2626", earth:"#a16207", metal:"#64748b", water:"#2563eb" };
-      const PRICE_TABLE = {
-        trial: { label:"1회 체험", price: 70000 },
-        w4: { label:"4주 11회", price: 800000 },
-        w8: { label:"8주 집중", price: 1500000 },
-        w12: { label:"12주 완성", price: 2000000 },
-      };
-
-      const RECO = {
-        wood: { programName:"간·순환 리커버리", diet:["녹색채소","신맛 소량","야식 줄이기"], exercise:["스트레칭","요가","걷기"], heatDome:["주 3회 35~40분","복부·골반 집중"], atomy:["헤모힘","오메가3"] },
-        fire: { programName:"심장·수면 밸런스", diet:["토마토","카페인 줄이기","매운맛 줄이기"], exercise:["빠른 걷기","호흡 명상","가벼운 유산소"], heatDome:["주 2~3회 30~35분","저온부터 점진"], atomy:["비타민C","칼마디"] },
-        earth: { programName:"장·대사 리셋", diet:["따뜻한 음식","식이섬유","밀가루 줄이기"], exercise:["식후 걷기","스쿼트","코어"], heatDome:["주 3회 35분","복부 순환"], atomy:["프로바이오틱스","비타민B"] },
-        metal: { programName:"폐·피부 디톡스", diet:["배/무","수분섭취","흡연 줄이기"], exercise:["호흡운동","가벼운 근력","걷기"], heatDome:["주 2~3회 30분","등·견갑부 중심"], atomy:["프로폴리스","비타민C"] },
-        water: { programName:"신장·부종 순환", diet:["검은콩","저염식","야식 금지"], exercise:["하체 강화","골반 스트레칭","걷기"], heatDome:["주 3회 40분","하복부·허리 중심"], atomy:["홍삼","비타민B"] },
-      };
-
-      const INBODY_KEYS = { weight:"체중(kg)", muscle:"근육량(kg)", water:"체수분(L)", fatKg:"체지방량(kg)", fatPct:"체지방률(%)", phaseAngle:"위상각(°)" };
-
-      const QUESTIONS = [
-        { key:"mainSymptom", label:"어디가 가장 불편하신가요?", options:["선택", "어깨/목 결림", "허리/골반", "복부/소화", "다리 붓기", "손발 냉증", "수면/피로"] },
-        { key:"coldHeat", label:"몸의 온도 느낌은 어떤가요?", options:["선택", "손발이 차다", "상체 열이 많다", "냉/열이 번갈아 있다", "보통"] },
-        { key:"digestion", label:"식후 상태는 어떤가요?", options:["선택", "속이 더부룩하다", "가스/트림이 잦다", "식곤증이 심하다", "큰 불편 없음"] },
-        { key:"sleep", label:"수면은 어떤 편인가요?", options:["선택", "잠들기 어렵다", "자주 깬다", "자고 나도 피곤", "수면 양호"] },
-        { key:"stress", label:"스트레스/피로도는 어떤가요?", options:["선택", "매우 높다", "높다", "보통", "낮다"] },
-      ];
-
-      const OPTION_TO_ELEMENT = {
-        mainSymptom: { "어깨/목 결림":"wood", "허리/골반":"water", "복부/소화":"earth", "다리 붓기":"water", "손발 냉증":"fire", "수면/피로":"fire" },
-        coldHeat: { "손발이 차다":"fire", "상체 열이 많다":"water", "냉/열이 번갈아 있다":"water", "보통":"earth" },
-        digestion: { "속이 더부룩하다":"earth", "가스/트림이 잦다":"earth", "식곤증이 심하다":"earth", "큰 불편 없음":"metal" },
-        sleep: { "잠들기 어렵다":"fire", "자주 깬다":"fire", "자고 나도 피곤":"water", "수면 양호":"wood" },
-        stress: { "매우 높다":"wood", "높다":"wood", "보통":"earth", "낮다":"metal" }
-      };
-
-      const ATOMY_BY_ISSUE = { cold: "홍삼", edema: "칼륨/미네랄 밸런스 제품", highFat: "오메가3", lowPhase: "헤모힘", digestion: "프로바이오틱스", stress: "비타민B" };
-
-      const CONSTITUTION_CODE_BOOK = {
-        S3R: { title:"수정체 순환형", feature:["다리 붓기", "오후 붓기 심화"], prescription:["온열 30분", "웨이브 20분", "종아리 수축 운동"], supplements:["애터미 오메가3", "애터미 헤모힘"], ment:"순환을 돌리면서 혈관 흐름을 같이 올립니다." },
-        H2M: { title:"화부족 저대사형", feature:["체온 낮음", "체지방 감량 반응 저하"], prescription:["온열 40분", "웨이브 15분", "스텝 3분"], supplements:["애터미 B컴플렉스", "애터미 프로바이오틱스"], ment:"대사를 먼저 올려야 체지방이 반응합니다." },
-        T3M: { title:"토정체 소화형", feature:["가스/트림", "더부룩함"], prescription:["복부 온열 30분", "웨이브 15분"], supplements:["애터미 프로바이오틱스", "애터미 식이섬유 제품"], ment:"소화가 풀려야 붓기도 줄어듭니다." },
-        W1N: { title:"목과다 긴장형", feature:["불면", "예민/긴장"], prescription:["온열 40분(저강도)", "복식호흡"], supplements:["애터미 칼마디", "애터미 B컴플렉스"], ment:"신경을 안정시키는 방향으로 갑니다." },
-        M2R: { title:"금허 면역형", feature:["면역 저하", "피부 건조/호흡기 민감"], prescription:["온열 35분", "웨이브 15분"], supplements:["애터미 헤모힘", "애터미 비타민C"], ment:"면역을 올려야 회복속도가 빨라집니다." },
-        ST4R: { title:"수+토 복합정체형", feature:["붓기 + 소화불량 동시"], prescription:["온열 30분", "웨이브 20분", "가벼운 걷기"], supplements:["애터미 프로바이오틱스", "애터미 오메가3", "애터미 헤모힘"], ment:"장과 혈관을 같이 돌립니다." },
-        T2C: { title:"토허 근감소형", feature:["근육량 저하", "피로 누적"], prescription:["온열 30분", "웨이브 20분", "하체 근력"], supplements:["애터미 단백질 제품", "애터미 칼마디"], ment:"근육이 늘어야 기초대사가 유지됩니다." },
-        S2C: { title:"수허 냉증형", feature:["손발 냉증", "허리 시림"], prescription:["온열 40분", "저강도 걷기"], supplements:["애터미 B컴플렉스", "애터미 오메가3"], ment:"속체온을 유지하는 방향으로 갑니다." }
-      };
-
-      // --- [분석 함수 로직] ---
-      function parseSajuKor(raw) {
-        const parts = raw.trim().split(/\s+/).filter(Boolean);
-        if (parts.length !== 4) return { ok:false, error:"사주는 4개(년 월 일 시) 입력 예: 신해 기해 임인 기유" };
-        const parsed = parts.map((pair) => {
-          if (pair.length !== 2) return null;
-          const stemKor = pair[0], branchKor = pair[1];
-          const stem = STEM_KOR_TO_HANJA[stemKor];
-          const branch = BRANCH_KOR_TO_HANJA[branchKor];
-          if (!stem || !branch) return null;
-          return { stemKor, branchKor, stem, branch, stemEl: STEM_EL[stem], branchEl: BRANCH_EL[branch] };
-        });
-        if (parsed.some((x) => !x)) return { ok:false, error:"천간/지지 입력을 확인해주세요." };
-        return { ok:true, value: parsed };
-      }
-
-      function countElements(parsed) {
-        const c = { wood:0, fire:0, earth:0, metal:0, water:0 };
-        parsed.forEach((p) => { c[p.stemEl] += 1; c[p.branchEl] += 1; });
-        return c;
-      }
-
-      function pickProgram(inbody) {
-        if (!inbody) return PRICE_TABLE.w4;
-        if (Number(inbody.phaseAngle) < 5 && Number(inbody.phaseAngle) > 0) return PRICE_TABLE.w12;
-        if (Number(inbody.fatPct) >= 30) return PRICE_TABLE.w8;
-        return PRICE_TABLE.w4;
-      }
-
-      function analyzeSurvey(questionnaire) {
-        const score = { wood:0, fire:0, earth:0, metal:0, water:0 };
-        const points = [];
-        Object.keys(questionnaire).forEach((key) => {
-          const ans = questionnaire[key];
-          const el = OPTION_TO_ELEMENT[key]?.[ans];
-          if (el) score[el] += 1;
-        });
-        const max = Math.max(...Object.values(score));
-        const target = Object.keys(score).find((k)=>score[k]===max) || "earth";
-        if (["손발이 차다", "자고 나도 피곤"].includes(questionnaire.coldHeat) || questionnaire.mainSymptom === "손발 냉증") points.push("체온 저하·말초순환 저하 신호가 있어 온열 관리 강도를 높이세요.");
-        if (["속이 더부룩하다", "가스/트림이 잦다", "식곤증이 심하다"].includes(questionnaire.digestion)) points.push("소화기 부담이 있어 식사량 분할·야식 제한이 필요합니다.");
-        if (["매우 높다", "높다"].includes(questionnaire.stress)) points.push("스트레스 축이 높아 혈압/혈당 변동 관리가 중요합니다.");
-        return { score, target, points };
-      }
-
-      function analyzeInbody(inbody, useInbody) {
-        if (!useInbody) return { used:false, risks:[], points:["인바디 데이터 없이 사주/문진 기반 분석"], target:"earth" };
-        const risks = []; const points = []; let target = "earth";
-        const fatPct = Number(inbody.fatPct || 0); const phase = Number(inbody.phaseAngle || 0);
-        if (fatPct >= 30) { risks.push("highFat"); points.push(`체지방률 ${fatPct}%로 대사 저하 위험이 있습니다.`); target = "earth"; }
-        if (phase > 0 && phase < 5) { risks.push("lowPhase"); points.push(`위상각 ${phase}°로 세포 활력 저하 신호가 있습니다.`); target = "water"; }
-        return { used:true, risks, points, target };
-      }
-
-      function deriveConstitutionCode({ counts, questionnaire, inbody }) {
-        const isEdema = questionnaire.mainSymptom === "다리 붓기" || counts.water >= 3;
-        const isDigestion = ["속이 더부룩하다", "가스/트림이 잦다"].includes(questionnaire.digestion);
-        let code = "H2M";
-        if (isEdema && isDigestion) code = "ST4R";
-        else if (isEdema) code = "S3R";
-        else if (isDigestion) code = "T3M";
-        const profile = CONSTITUTION_CODE_BOOK[code] || CONSTITUTION_CODE_BOOK.H2M;
-        return { code, profile, inbodySummary: inbody ? "인바디 반영됨" : "미측정" };
-      }
-
-      function buildOhengComment(parsed, counts, surveyAnalysis, inbodyAnalysis, questionnaire, inbody) {
-        const [year, month, day, hour] = parsed;
-        const entries = Object.entries(counts);
-        const max = Math.max(...entries.map(([,v]) => v));
-        const min = Math.min(...entries.map(([,v]) => v));
-        const strong = entries.filter(([,v]) => v === max).map(([k]) => k);
-        const weak = entries.filter(([,v]) => v === min).map(([k]) => k);
+        /* 리포트 레이아웃 */
+        .result-box { background: #fff; border: 3px solid var(--primary); padding: 40px; border-radius: 20px; margin-top: 25px; position: relative; }
+        .saju-badge-container { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+        .saju-badge { background: #fff; padding: 10px 15px; border-radius: 10px; font-size: 24px; font-weight: bold; border: 2px solid #eee; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); color: #2c3e50; }
+        .code-banner { background: var(--accent); color: white; padding: 15px; border-radius: 10px; text-align: center; font-size: 28px; font-weight: 800; margin: 20px 0; }
         
-        return {
-          weak, strong,
-          sajuSummary: `사주: ${year.stemKor}${year.branchKor}년 · ${month.stemKor}${month.branchKor}월 · ${day.stemKor}${day.branchKor}일 · ${hour.stemKor}${hour.branchKor}시`,
-          sections: [
-            { title: "1) 핵심 구조", items: [ `일간: ${day.stem}(${day.stemKor})`, `강한 오행: ${strong.map(k=>EL_LABEL[k]).join(", ")}`, `약한 오행: ${weak.map(k=>EL_LABEL[k]).join(", ")}` ] },
-            { title: "2) 문진 포인트", items: surveyAnalysis.points.length ? surveyAnalysis.points : ["특이사항 없음"] },
-            { title: "3) 인바디 분석", items: inbodyAnalysis.points }
-          ],
-          primaryTarget: surveyAnalysis.target
-        };
-      }
+        .section-box { border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #eee; }
+        .habit-box { background: #fff9db; border: 2px solid #fab005; }
+        .tea-box { background: #fdf2e9; border: 2px solid #f0b27a; }
+        .expert-box { background: #eef7ff; border: 2px solid #3498db; }
+        
+        .box-title { font-weight: bold; font-size: 19px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .info-card { background: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #eee; }
+        .footer-msg { text-align: center; font-weight: bold; font-size: 20px; border-top: 2px dashed #ddd; padding-top: 25px; color: var(--primary); margin-top: 30px; }
 
-      function getPillarCards(parsed) {
-        const [y, m, d, h] = parsed;
-        return [
-          { title:"시주", top:h.stem, topEl:h.stemEl, topSub:"시간", bottom:h.branch, bottomEl:h.branchEl, bottomSub:"시지" },
-          { title:"일주", top:d.stem, topEl:d.stemEl, topSub:"일간", bottom:d.branch, bottomEl:d.branchEl, bottomSub:"일지" },
-          { title:"월주", top:m.stem, topEl:m.stemEl, topSub:"월간", bottom:m.branch, bottomEl:m.branchEl, bottomSub:"월지" },
-          { title:"년주", top:y.stem, topEl:y.stemEl, topSub:"년간", bottom:y.branch, bottomEl:y.branchEl, bottomSub:"년지" },
-        ];
-      }
-
-      // --- [에러 바운더리] ---
-      class AppErrorBoundary extends React.Component {
-        constructor(props) { super(props); this.state = { hasError:false }; }
-        static getDerivedStateFromError() { return { hasError:true }; }
-        render() {
-          if (this.state.hasError) return <div style={{padding:20}}><h2>앱 화면 오류가 발생했습니다. 새로고침 해주세요.</h2></div>;
-          return this.props.children;
+        @media print {
+            nav, .btn, #search-area, .no-print, h2 { display: none !important; }
+            body { background: white; }
+            .container { max-width: 100%; margin: 0; padding: 0; }
+            .result-box { border: 2px solid #000; padding: 20px; margin: 0; border-radius: 0; }
         }
-      }
+    </style>
+</head>
+<body>
 
-      // --- [메인 앱 컴포넌트] ---
-      function App() {
-        const [view, setView] = useState("form");
-        const [step, setStep] = useState(1);
-        const [name, setName] = useState("");
-        const [phone, setPhone] = useState("");
-        const [sajuRaw, setSajuRaw] = useState("");
-        const [questionnaire, setQuestionnaire] = useState({ mainSymptom:"", coldHeat:"", digestion:"", sleep:"", stress:"" });
-        const [useInbody, setUseInbody] = useState(true);
-        const [inbody, setInbody] = useState({ weight:"", muscle:"", water:"", fatKg:"", fatPct:"", phaseAngle:"" });
-        const [customers, setCustomers] = useState([]);
+<nav>
+    <div class="nav-item active" onclick="showTab('register')">고객접수(문진)</div>
+    <div class="nav-item" onclick="showTab('consult')">상담실(분석)</div>
+</nav>
 
-        useEffect(() => {
-          const saved = localStorage.getItem("assessments-local");
-          if (saved) setCustomers(JSON.parse(saved));
-        }, []);
+<div class="container">
+    <section id="register" class="view-section active">
+        <div class="card">
+            <h2>신규 고객 등록</h2>
+            <input type="text" id="name" placeholder="성함">
+            <input type="text" id="saju_ko" placeholder="사주원국 (예: 신해 기해 임인 기유)">
+            <p><strong>[체질 문진] 증상 강도 (1:낮음 ~ 5:높음)</strong></p>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div>목(W) 근육긴장 <select id="w_val"><option>1</option><option>3</option><option>5</option></select></div>
+                <div>화(H) 순환부족 <select id="h_val"><option>1</option><option>3</option><option>5</option></select></div>
+                <div>토(T) 소화정체 <select id="t_val"><option>1</option><option>3</option><option>5</option></select></div>
+                <div>금(M) 면역저하 <select id="m_val"><option>1</option><option>3</option><option>5</option></select></div>
+                <div>수(S) 부종냉증 <select id="s_val"><option>1</option><option>3</option><option>5</option></select></div>
+            </div>
+            <button class="btn" style="margin-top:20px;" onclick="saveCustomer()">데이터 전송</button>
+        </div>
+    </section>
 
-        const parsedRes = useMemo(() => parseSajuKor(sajuRaw), [sajuRaw]);
-        const result = useMemo(() => {
-          if (!parsedRes.ok) return null;
-          const parsed = parsedRes.value;
-          const counts = countElements(parsed);
-          const sAnalysis = analyzeSurvey(questionnaire);
-          const iAnalysis = analyzeInbody(inbody, useInbody);
-          const oComment = buildOhengComment(parsed, counts, sAnalysis, iAnalysis, questionnaire, inbody);
-          const codePack = deriveConstitutionCode({ counts, questionnaire, inbody: useInbody ? inbody : null });
-          const baseReco = RECO[oComment.primaryTarget] || RECO.earth;
-          
-          return { parsed, counts, ohengComment: oComment, codePack, program: { title: baseReco.programName, recommend: pickProgram(useInbody?inbody:null) }, heatDome: baseReco.heatDome, atomy: baseReco.atomy, inbodyAnalysis: iAnalysis };
-        }, [parsedRes, questionnaire, inbody, useInbody]);
+    <section id="consult" class="view-section">
+        <div class="card no-print" id="search-area">
+            <h2>고객 조회</h2>
+            <input type="text" id="searchName" placeholder="성함 입력">
+            <button class="btn" onclick="searchCustomer()">검색</button>
+            <div id="search-result" style="margin-top:15px;"></div>
+        </div>
 
-        const saveCustomer = () => {
-          const next = [{ id: Date.now(), name, phone, result, date: new Date().toLocaleString() }, ...customers];
-          setCustomers(next);
-          localStorage.setItem("assessments-local", JSON.stringify(next));
-          alert("저장되었습니다.");
-        };
-
-        return (
-          <div style={{maxWidth:960, margin:"0 auto", padding:16}}>
-            <h1 style={{fontSize:28, fontWeight:900}}>체온1도씨플러스 상담앱</h1>
-            <div className="no-print" style={{display:"flex", gap:8, marginBottom:20}}>
-              <button onClick={()=>{setView("form"); setStep(1);}} style={{padding:"8px 16px", background:view==="form"?"#0f172a":"#e2e8f0", color:view==="form"?"white":"black", borderRadius:20, border:"none"}}>신규 상담</button>
-              <button onClick={()=>setView("list")} style={{padding:"8px 16px", background:view==="list"?"#0f172a":"#e2e8f0", color:view==="list"?"white":"black", borderRadius:20, border:"none"}}>목록 ({customers.length})</button>
+        <div id="consult-area" style="display:none;">
+            <div class="card no-print">
+                <h2 id="targetName">분석 리포트 생성</h2>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <input type="number" id="in1" placeholder="전 인바디">
+                    <input type="number" id="in2" placeholder="후 인바디">
+                </div>
+                <button class="btn" style="background:#27ae60; margin-top:10px;" onclick="generateReport()">통합 분석 및 출력 준비</button>
+                <button class="btn btn-print" onclick="window.print()">🖨️ 리포트 즉시 인쇄</button>
             </div>
 
-            {view === "form" && (
-              <>
-                {step === 1 && (
-                  <div style={{background:"white", padding:20, borderRadius:16, border:"1px solid #e2e8f0"}}>
-                    <h2>고객 정보 및 사주</h2>
-                    <div style={{display:"flex", gap:10, marginBottom:10}}>
-                      <input placeholder="이름" value={name} onChange={e=>setName(e.target.value)} style={{flex:1, padding:12, borderRadius:8, border:"1px solid #cbd5e1"}}/>
-                      <input placeholder="전화번호" value={phone} onChange={e=>setPhone(e.target.value)} style={{flex:1, padding:12, borderRadius:8, border:"1px solid #cbd5e1"}}/>
-                    </div>
-                    <input placeholder="사주 (예: 신해 기해 임인 기유)" value={sajuRaw} onChange={e=>setSajuRaw(e.target.value)} style={{width:"100%", padding:12, borderRadius:8, border:"1px solid #cbd5e1", marginBottom:20}}/>
-                    <h3>문진</h3>
-                    {QUESTIONS.map(q => (
-                      <div key={q.key} style={{marginBottom:10}}>
-                        <div style={{fontWeight:600}}>{q.label}</div>
-                        <select value={questionnaire[q.key]} onChange={e=>setQuestionnaire({...questionnaire, [q.key]:e.target.value})} style={{width:"100%", padding:10, borderRadius:8}}>
-                          {q.options.map(o => <option key={o} value={o}>{o}</option>)}
-                        </select>
-                      </div>
-                    ))}
-                    <button onClick={()=>setStep(2)} style={{width:"100%", padding:15, background:"#16a34a", color:"white", border:"none", borderRadius:10, fontWeight:700, marginTop:10}}>다음 단계</button>
-                  </div>
-                )}
-                {step === 2 && (
-                  <div style={{background:"white", padding:20, borderRadius:16, border:"1px solid #e2e8f0"}}>
-                    <h2>인바디 정보</h2>
-                    <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
-                      {Object.keys(INBODY_KEYS).map(k => (
-                        <input key={k} type="number" placeholder={INBODY_KEYS[k]} value={inbody[k]} onChange={e=>setInbody({...inbody, [k]:e.target.value})} style={{padding:12, borderRadius:8, border:"1px solid #cbd5e1"}}/>
-                      ))}
-                    </div>
-                    <button onClick={()=>setStep(3)} style={{width:"100%", padding:15, background:"#16a34a", color:"white", border:"none", borderRadius:10, fontWeight:700, marginTop:20}}>결과 보기</button>
-                  </div>
-                )}
-                {step === 3 && result && (
-                  <div style={{background:"white", padding:20, borderRadius:16, border:"1px solid #e2e8f0"}}>
-                    <h2>상담 리포트: {name}님</h2>
-                    <div style={{display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:20}}>
-                      {getPillarCards(result.parsed).map(c => (
-                        <div key={c.title} style={{textAlign:"center", border:"1px solid #eee", padding:10, borderRadius:10}}>
-                          <div style={{fontSize:12, color:"#666"}}>{c.title}</div>
-                          <div style={{fontSize:24, fontWeight:900, color:EL_COLOR[c.topEl]}}>{c.top}</div>
-                          <div style={{fontSize:24, fontWeight:900, color:EL_COLOR[c.bottomEl]}}>{c.bottom}</div>
-                        </div>
-                      ))}
-                    </div>
-                    {result.ohengComment.sections.map(s => (
-                      <div key={s.title} style={{marginBottom:15, padding:10, background:"#f8fafc", borderRadius:10}}>
-                        <div style={{fontWeight:800, color:"#1e293b"}}>{s.title}</div>
-                        <div>{s.items.join(" / ")}</div>
-                      </div>
-                    ))}
-                    <div style={{background:"#0f172a", color:"white", padding:15, borderRadius:10}}>
-                      <b>추천 프로그램: {result.program.title}</b> ({result.program.recommend.label})
-                    </div>
-                    <div style={{marginTop:20, display:"flex", gap:10}} className="no-print">
-                      <button onClick={()=>window.print()} style={{flex:1, padding:12}}>인쇄하기</button>
-                      <button onClick={saveCustomer} style={{flex:1, padding:12, background:"#16a34a", color:"white", border:"none", borderRadius:10}}>저장하기</button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
+            <div id="final-report" class="result-box" style="display:none;">
+                <div class="saju-badge-container" id="saju-hanja"></div>
+                <div class="code-banner" id="res-code"></div>
 
-            {view === "list" && (
-              <div style={{background:"white", padding:20, borderRadius:16, border:"1px solid #e2e8f0"}}>
-                <h2>저장된 상담 기록</h2>
-                {customers.map(c => (
-                  <div key={c.id} style={{padding:15, borderBottom:"1px solid #eee", display:"flex", justifyContent:"space-between"}}>
-                    <div><b>{c.name}</b> ({c.phone}) - {c.date}</div>
-                    <button onClick={()=>{setName(c.name); setPhone(c.phone); setSajuRaw(c.result.parsed.map(p=>p.stemKor+p.branchKor).join(" ")); setView("form"); setStep(3);}} style={{padding:"5px 10px"}}>보기</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      }
+                <div class="section-box tea-box">
+                    <div class="box-title">🍵 오늘의 웰컴 부스터: 홍삼단 온수</div>
+                    <div id="res-tea"></div>
+                </div>
+                
+                <div class="section-box habit-box">
+                    <div class="box-title">🔮 운명을 바꾸는 마음 습관</div>
+                    <div id="res-mind"></div>
+                </div>
 
-      ReactDOM.createRoot(document.getElementById("root")).render(<AppErrorBoundary><App /></AppErrorBoundary>);
-    </script>
-  </body>
+                <div class="info-grid">
+                    <div class="info-card"><strong>🎯 테라피 처방</strong><br><span id="res-therapy"></span></div>
+                    <div class="info-card"><strong>💊 애터미 맞춤영양</strong><br><span id="res-atomy"></span></div>
+                </div>
+
+                <div class="info-grid" style="margin-top:0;">
+                    <div class="info-card"><strong>🥗 개운 식단</strong><br><span id="res-diet"></span></div>
+                    <div class="info-card"><strong>✨ 행동 개운법</strong><br><span id="res-gaewun"></span></div>
+                </div>
+
+                <div class="section-box expert-box">
+                    <div class="box-title">💡 송은숙 원장님의 전문 진단</div>
+                    <div id="res-ment"></div>
+                </div>
+
+                <div class="footer-msg">"체온 1도가 당신의 운명을 바꿉니다."</div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+    const firebaseConfig = { apiKey: "AIzaSyAUucRqU8nciqkINbjZcUUHx3UkR_OOprs", authDomain: "cheon1do-plus.firebaseapp.com", projectId: "cheon1do-plus", storageBucket: "cheon1do-plus.firebasestorage.app", messagingSenderId: "344900999016", appId: "1:344900999016:web:a20ef3b01df68ca03928dd" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    let currentCustomer = null;
+
+    function showTab(t) {
+        document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+        document.getElementById(t).classList.add('active');
+    }
+
+    async function saveCustomer() {
+        const scores = { W: document.getElementById('w_val').value, H: document.getElementById('h_val').value, T: document.getElementById('t_val').value, M: document.getElementById('m_val').value, S: document.getElementById('s_val').value };
+        await db.collection("clients").add({ name: document.getElementById('name').value, saju_ko: document.getElementById('saju_ko').value, scores, createdAt: new Date() });
+        alert("데이터 저장 완료!"); location.reload();
+    }
+
+    async function searchCustomer() {
+        const snap = await db.collection("clients").where("name", "==", document.getElementById('searchName').value).get();
+        const resDiv = document.getElementById('search-result'); resDiv.innerHTML = "";
+        snap.forEach(doc => {
+            resDiv.innerHTML += `<button class="btn" style="background:#34495e; margin-bottom:5px;" onclick="selectCustomer('${doc.id}', '${doc.data().name}', '${doc.data().saju_ko}', ${JSON.stringify(doc.data().scores)})">${doc.data().name} 선택</button>`;
+        });
+    }
+
+    function selectCustomer(id, name, saju, scores) {
+        currentCustomer = { id, name, saju, scores };
+        document.getElementById('search-area').style.display = 'none';
+        document.getElementById('consult-area').style.display = 'block';
+    }
+
+    const hanjaMap = {'신':'辛','해':'亥','기':'己','임':'壬','인':'寅','유':'酉','자':'子','축':'丑','병':'丙','정':'丁','무':'戊','경':'庚','을':'乙','갑':'甲','계':'癸','미':'未','술':'戌','진':'辰','사':'巳','오':'午','묘':'卯'};
+
+    function generateReport() {
+        const saju = currentCustomer.saju;
+        const s = currentCustomer.scores;
+        const maxO = Object.keys(s).reduce((a, b) => s[a] > s[b] ? a : b);
+        let res = {};
+
+        // 핵심 로직: 홍삼단 멘트 및 운명습관 결합
+        if(maxO === 'S') {
+            res = { code: "S3R 수정체 순환형", therapy: "온열 40분 + 웨이브 20분", atomy: "헤모힘, 오메가3, 보이차", diet: "검은콩, 해조류", gaewun: "반신욕, 머리 동쪽 취침", tea: "사주에 수독(水)이 많아 속이 냉합니다. 홍삼단의 따뜻한 성질로 속불을 지펴야 노폐물이 잘 빠집니다.", mind: "<b>[방출의 습관]</b> 혼자 참는 습관이 몸을 붓게 합니다. 오늘은 모든 고민을 땀과 함께 배출하세요.", ment: "기혈의 힘으로 수독을 밀어낼 때 진짜 순환이 시작됩니다." };
+        } else if(maxO === 'T') {
+            res = { code: "T3M 토정체 소화형", therapy: "온열 30분 + 웨이브 30분", atomy: "헤모힘, 유산균, 효소", diet: "단호박, 양배추", gaewun: "식후 명상, 노란색 소품", tea: "생각이 많아 정체된 기운을 홍삼의 온기로 깨워줍니다. 위장 운동을 돕는 마중물입니다.", mind: "<b>[비움의 습관]</b> 완벽하려는 생각이 위장을 멈추게 합니다. 뇌를 쉬게 하는 연습이 필요합니다.", ment: "속이 편안해지면 얼굴의 독소와 붓기가 자연스럽게 사라집니다." };
+        } else if(maxO === 'W') {
+            res = { code: "W1N 목과다 긴장형", therapy: "온열 40분 (저강도 이완)", atomy: "헤모힘, 칼마디, 락티움", diet: "녹색채소, 매실", gaewun: "숲 산책, 스트레칭", tea: "긴장된 간 기운을 부드럽게 이완시키는 홍삼 처방입니다. 몸을 유연하게 만들어줍니다.", mind: "<b>[이완의 습관]</b> 책임감을 잠시 내려놓으세요. 어깨의 짐을 덜어야 운의 통로가 열립니다.", ment: "긴장이 풀려야 체온이 오르고 면역세포가 활성화됩니다." };
+        } else {
+            res = { code: "M2R 금허 면역형", therapy: "온열 40분 + 웨이브 20분", atomy: "헤모힘, 비타민C", diet: "도라지, 무", gaewun: "심호흡, 흰색 옷", tea: "약해진 방어 기운을 채우는 명품 홍삼차입니다. 심부 온도를 올려 면역력을 보호하세요.", mind: "<b>[보호의 습관]</b> 외부 자극에 예민한 기질입니다. 내면의 단단한 중심을 세우는 것이 우선입니다.", ment: "무너진 면역벽을 헤모힘과 온열로 다시 견고하게 세웁니다." };
+        }
+
+        document.getElementById('res-code').innerText = res.code;
+        document.getElementById('res-tea').innerText = res.tea;
+        document.getElementById('res-mind').innerHTML = res.mind;
+        document.getElementById('res-therapy').innerText = res.therapy;
+        document.getElementById('res-atomy').innerText = res.atomy;
+        document.getElementById('res-diet').innerText = res.diet;
+        document.getElementById('res-gaewun').innerText = res.gaewun;
+        document.getElementById('res-ment').innerText = res.ment;
+
+        const hanjaHTML = saju.split(' ').map(s => `<div class="saju-badge">${hanjaMap[s] || s}</div>`).join('');
+        document.getElementById('saju-hanja').innerHTML = hanjaHTML;
+        document.getElementById('final-report').style.display = 'block';
+    }
+</script>
+</body>
 </html>
