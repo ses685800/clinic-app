@@ -3,60 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>천일도+ v3.2 - 전문 상담 시스템</title>
+    <title>천일도+ v4.1 - 오행 건강 리포트</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #2c3e50; --secondary: #3498db; --accent: #e74c3c; --bg: #f4f7f6; }
-        body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); margin: 0; padding: 0; color: #333; }
+        :root { --primary: #2c3e50; --secondary: #3498db; --bg: #f8f9fa; --목: #27ae60; --화: #e74c3c; --토: #f39c12; --금: #7f8c8d; --수: #2980b9; }
+        body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); margin: 0; padding: 0; }
         nav { background: var(--primary); color: white; padding: 15px; display: flex; gap: 20px; position: sticky; top: 0; z-index: 100; }
-        .nav-item { cursor: pointer; padding: 10px 20px; border-radius: 5px; font-weight: bold; }
+        .nav-item { cursor: pointer; padding: 8px 15px; border-radius: 5px; font-weight: bold; }
         .nav-item.active { background: var(--secondary); }
         .container { max-width: 900px; margin: 20px auto; padding: 0 15px; }
-        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        h2 { color: var(--primary); border-left: 5px solid var(--secondary); padding-left: 10px; font-size: 18px; margin-bottom: 15px; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 15px; margin-bottom: 12px; }
-        .btn-group { display: flex; gap: 10px; }
-        .btn { border: none; padding: 15px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; flex: 1; }
-        .btn-blue { background: var(--secondary); color: white; }
-        .btn-gray { background: #95a5a6; color: white; }
-        .btn-list { background: #34495e; color: white; width: 100%; text-align: left; padding: 15px; margin-bottom: 8px; border: none; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; }
+        .card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        h2 { border-left: 5px solid var(--secondary); padding-left: 10px; font-size: 18px; margin-bottom: 15px; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; font-size: 15px; }
+        .saju-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0; }
+        .saju-box { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 15px 5px; text-align: center; }
+        .saju-char { font-size: 28px; font-weight: bold; margin: 5px 0; }
+        .bar-container { background: #eee; border-radius: 10px; height: 12px; margin: 5px 0 12px 0; overflow: hidden; }
+        .bar-fill { height: 100%; transition: width 0.5s; }
+        .health-tip { background: #f0f4f8; padding: 15px; border-radius: 10px; border-left: 5px solid var(--secondary); margin-top: 10px; font-size: 15px; line-height: 1.6; }
         .view-section { display: none; }
         .view-section.active { display: block; }
-        
-        /* 리포트 디자인 */
-        .result-box { background: #fff; border: 2px solid var(--primary); padding: 30px; border-radius: 15px; margin-top: 15px; display: none; line-height: 1.6; }
-        .saju-badge { background: #f8f9fa; padding: 8px 12px; border-radius: 8px; font-weight: bold; font-size: 24px; border: 1px solid #ddd; margin: 0 4px; }
-        .distribution-box { background: #eef7ff; padding: 15px; border-radius: 10px; margin: 15px 0; border: 1px solid #3498db; }
-        .code-banner { background: var(--accent); color: white; padding: 15px; border-radius: 8px; text-align: center; font-size: 24px; font-weight: bold; margin: 15px 0; }
-        .item-box { padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #eee; }
-        @media print { .no-print, nav, .btn, h2 { display: none !important; } .result-box { display: block !important; border: none; padding: 0; } }
+        .btn { background: var(--secondary); color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; margin-top: 10px; }
+        @media print { .no-print { display: none !important; } .container { width: 100%; } .card { box-shadow: none; border: 1px solid #eee; } }
     </style>
 </head>
 <body>
 
 <nav>
-    <div class="nav-item active" id="nav-reg" onclick="showTab('register')">1. 고객접수</div>
-    <div class="nav-item" id="nav-con" onclick="showTab('consult')">2. 전문상담</div>
+    <div class="nav-item active" onclick="showTab('register')">고객접수</div>
+    <div class="nav-item" onclick="showTab('consult')">전문상담</div>
 </nav>
 
 <div class="container">
     <section id="register" class="view-section active">
         <div class="card">
-            <h2>고객 정보 및 체질 문진</h2>
-            <div style="display: flex; gap: 10px;">
-                <input type="text" id="name" placeholder="성함">
-                <select id="gender" style="flex: 0.4;"><option value="여">여성</option><option value="남">남성</option></select>
-            </div>
-            <input type="tel" id="phone" placeholder="전화번호">
-            <input type="text" id="saju_ko" placeholder="사주원국 (예: 신해 기해 임인 기유)">
-            
-            <p style="font-weight: bold; margin-top: 20px;">[증상 체크]</p>
-            <div id="survey-questions"></div> <div class="btn-group">
-                <button class="btn btn-blue" onclick="saveCustomer()">전송 완료</button>
-                <button class="btn btn-gray" onclick="resetForm()">리셋</button>
-            </div>
+            <h2>고객 정보 및 문진</h2>
+            <input type="text" id="name" placeholder="성함">
+            <input type="text" id="saju_ko" placeholder="사주 (예: 신해 기해 임인 기유)">
+            <div id="survey-area"></div>
+            <button class="btn" onclick="saveCustomer()">전송 및 접수</button>
         </div>
     </section>
 
@@ -68,48 +55,25 @@
 
         <div id="consult-area" style="display:none;">
             <div class="card no-print">
-                <h2 id="targetDisplay">상담 진행 중</h2>
-                <p><strong>[인바디 데이터 입력]</strong></p>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom: 10px;">
-                    <input type="number" id="w1" placeholder="관리 전 체중">
-                    <input type="number" id="f1" placeholder="관리 전 체지방">
-                    <input type="number" id="w2" placeholder="관리 후 체중">
-                    <input type="number" id="f2" placeholder="관리 후 체지방">
+                <h2>인바디 지표 입력</h2>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <input type="number" id="weight" placeholder="체중(kg)">
+                    <input type="number" id="phaseAngle" placeholder="위상각(°)">
                 </div>
-                <button class="btn btn-blue" onclick="generateReport()">분석 리포트 발행</button>
-                <button class="btn btn-gray" style="margin-top:10px;" onclick="window.print()">🖨️ 인쇄하기</button>
+                <button class="btn" onclick="generateReport()">최종 분석 리포트 발행</button>
             </div>
 
-            <div id="final-report" class="result-box">
-                <div style="text-align: center; border-bottom: 2px solid #333; pb: 10px; mb: 20px;">
-                    <h1 style="margin:0; color:var(--primary);">천일도+ 체질 분석 리포트</h1>
-                    <p id="res-info" style="font-weight: bold;"></p>
+            <div id="final-report" class="card" style="display:none;">
+                <h1 style="text-align:center; font-size: 22px; border-bottom: 2px solid #333; padding-bottom: 10px;">천일도+ 체질 분석 리포트</h1>
+                <div class="saju-grid" id="saju-display"></div>
+                <div id="graph-area"></div>
+                <div id="health-ment" class="health-tip"></div>
+                <div id="res-code" style="background:var(--화); color:white; padding:15px; border-radius:10px; text-align:center; font-weight:bold; font-size:20px; margin:15px 0;"></div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <div style="background:#fff5eb; padding:15px; border-radius:10px;"><strong>🍵 홍삼단 처방</strong><br><span id="res-tea"></span></div>
+                    <div style="background:#eef7ff; padding:15px; border-radius:10px;"><strong>💡 전문 소견</strong><br><span id="res-ment"></span></div>
                 </div>
-
-                <div id="saju-hanja" style="text-align:center; margin-bottom: 20px;"></div>
-
-                <div class="distribution-box">
-                    <strong>📊 오행 기운 및 건강 분석</strong><br>
-                    <span id="res-dist" style="font-size: 15px;"></span>
-                </div>
-
-                <div class="code-banner" id="res-code"></div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="item-box" style="background:#fff5eb;"><strong>🍵 웰컴 부스터</strong><br><span id="res-tea"></span></div>
-                    <div class="item-box" style="background:#fffbe6;"><strong>🔮 마음 습관</strong><br><span id="res-mind"></span></div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="item-box"><strong>🎯 테라피 처방</strong><br><span id="res-therapy"></span></div>
-                    <div class="item-box"><strong>💊 맞춤 영양</strong><br><span id="res-atomy"></span></div>
-                </div>
-
-                <div class="item-box" style="background:#eef7ff; border-color:#3498db;">
-                    <strong>💡 송은숙 원장님의 전문 진단</strong><br><span id="res-ment"></span>
-                </div>
-
-                <div style="text-align:center; margin-top:30px; font-weight:bold; font-size: 18px;">"체온 1도가 당신의 운명을 바꿉니다."</div>
+                <button class="btn no-print" onclick="window.print()">인쇄하기</button>
             </div>
         </div>
     </section>
@@ -121,110 +85,74 @@
     const db = firebase.firestore();
     let currentCustomer = null;
 
-    const questions = [
-        {id:'W', q:'어깨/목 근육이 자주 뭉치시나요?'},
-        {id:'H', q:'얼굴로 열이 오르거나 두근거리시나요?'},
-        {id:'T', q:'소화가 잘 안 되고 생각이 많으신가요?'},
-        {id:'M', q:'피부가 건조하고 면역이 약하신가요?'},
-        {id:'S', q:'몸이 잘 붓고 손발이 차가우신가요?'}
+    const QUESTIONS = [
+        { key:"main", label:"가장 불편한 곳", options:["목/어깨","허리","소화","냉증/부종"] },
+        { key:"cold", label:"평소 온도감", options:["춥다","덥다","열이올랐다식었다","보통"] }
     ];
 
     window.onload = () => {
-        const container = document.getElementById('survey-questions');
-        questions.forEach(item => {
-            container.innerHTML += `<label style="font-size:14px;">${item.q}</label>
-            <select id="${item.id}_val"><option value="1">아님</option><option value="3" selected>보통</option><option value="5">심함</option></select>`;
+        const area = document.getElementById('survey-area');
+        QUESTIONS.forEach(q => {
+            area.innerHTML += `<label style="font-size:13px;color:#666;">${q.label}</label><select id="${q.key}"><option value="">선택</option>${q.options.map(o=>`<option value="${o}">${o}</option>`).join('')}</select>`;
         });
     };
 
     function showTab(t) {
         document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         document.getElementById(t).classList.add('active');
-        document.getElementById(t === 'register' ? 'nav-reg' : 'nav-con').classList.add('active');
         if(t === 'consult') loadRecentCustomers();
     }
 
     async function saveCustomer() {
         const name = document.getElementById('name').value;
-        if(!name) return alert("성함을 입력해주세요.");
-        const data = {
-            name, gender: document.getElementById('gender').value,
-            phone: document.getElementById('phone').value,
-            saju_ko: document.getElementById('saju_ko').value,
-            scores: { W: document.getElementById('W_val').value, H: document.getElementById('H_val').value, T: document.getElementById('T_val').value, M: document.getElementById('M_val').value, S: document.getElementById('S_val').value },
-            createdAt: new Date()
-        };
-        await db.collection("clients").add(data);
-        alert("데이터 전송 완료! 상담실로 이동합니다.");
-        resetForm();
-        showTab('consult');
-    }
-
-    function resetForm() {
-        document.getElementById('name').value = ""; document.getElementById('phone').value = ""; document.getElementById('saju_ko').value = "";
+        const saju = document.getElementById('saju_ko').value;
+        if(!name || !saju) return alert("성함과 사주를 입력하세요.");
+        await db.collection("clients").add({ name, saju_ko: saju, createdAt: new Date() });
+        alert("접수 완료!"); showTab('consult');
     }
 
     async function loadRecentCustomers() {
         const snap = await db.collection("clients").orderBy("createdAt", "desc").limit(5).get();
-        const listDiv = document.getElementById('recent-list');
-        listDiv.innerHTML = "";
-        if(snap.empty) { listDiv.innerHTML = "<p>대기 고객이 없습니다.</p>"; return; }
+        const list = document.getElementById('recent-list');
+        list.innerHTML = "";
         snap.forEach(doc => {
-            const d = doc.data();
-            const time = d.createdAt ? d.createdAt.toDate().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : "";
             const btn = document.createElement('button');
-            btn.className = 'btn-list';
-            btn.innerHTML = `<span>${d.name}(${d.gender})</span> <span>${time} 접수</span>`;
-            btn.onclick = () => selectCustomer(doc.id, d);
-            listDiv.appendChild(btn);
+            btn.className = "btn"; btn.style.textAlign="left"; btn.style.background="#34495e";
+            btn.innerText = `${doc.data().name} 님 선택`;
+            btn.onclick = () => { currentCustomer = doc.data(); document.getElementById('consult-area').style.display='block'; };
+            list.appendChild(btn);
         });
     }
 
-    function selectCustomer(id, data) {
-        currentCustomer = { id, ...data };
-        document.getElementById('consult-area').style.display = 'block';
-        document.getElementById('final-report').style.display = 'none';
-        document.getElementById('targetDisplay').innerText = data.name + "님 상담/인바디 입력";
-    }
-
-    const hanjaMap = {'신':'辛','해':'亥','기':'己','임':'壬','인':'寅','유':'酉','자':'子','축':'丑','병':'丙','정':'丁','무':'戊','경':'庚','을':'乙','갑':'甲','계':'癸','미':'未','술':'戌','진':'辰','사':'巳','오':'午','묘':'卯'};
-    const ohaengMap = {'辛':'금','庚':'금','酉':'금','申':'금','壬':'수','癸':'수','亥':'수','子':'수','甲':'목','乙':'목','寅':'목','卯':'목','丙':'화','丁':'화','巳':'화','午':'화','戊':'토','己':'토','辰':'토','戌':'토','丑':'토','未':'토'};
+    const sajuMap = { '신':'辛','해':'亥','기':'己','임':'壬','인':'寅','유':'酉','자':'子','축':'丑','병':'丙','정':'丁','무':'戊','경':'庚','을':'乙','갑':'甲','계':'癸','미':'未','술':'戌','진':'辰','사':'巳','오':'午','묘':'卯' };
+    const sajuColor = { '辛':'금','庚':'금','酉':'금','申':'금','壬':'수','癸':'수','亥':'수','子':'수','甲':'목','乙':'목','寅':'목','卯':'목','丙':'화','丁':'화','巳':'화','午':'화','戊':'토','己':'토','辰':'토','戌':'토','丑':'토','未':'토' };
 
     function generateReport() {
-        const saju = currentCustomer.saju_ko || "";
-        const hanjas = saju.split(' ').map(h => hanjaMap[h] || h);
-        const counts = {'목':0, '화':0, '토':0, '금':0, '수':0};
-        hanjas.forEach(hj => { if(ohaengMap[hj]) counts[ohaengMap[hj]]++; });
+        const hanjas = currentCustomer.saju_ko.split(' ').map(k => sajuMap[k] || k);
+        const counts = { '목':0, '화':0, '토':0, '금':0, '수':0 };
+        hanjas.forEach(h => { if(sajuColor[h]) counts[sajuColor[h]]++; });
 
-        const s = currentCustomer.scores;
-        const maxO = Object.keys(s).reduce((a, b) => parseInt(s[a]) > parseInt(s[b]) ? a : b);
-        let res = {};
-
-        // 오행 분석 멘트 생성
-        let distText = `분석 결과, 고객님은 [${Object.entries(counts).filter(e=>e[1]>0).map(e=>e[0]+e[1]).join(', ')}] 기운을 타고나셨습니다. `;
-        if(counts['수'] >= 3) distText += "특히 물(水)의 기운이 강해 하체 냉증과 부종을 주의해야 하는 체질입니다.";
-        else if(counts['화'] >= 3) distText += "불(火)의 기운이 강해 심장 열감과 상기되는 증상을 조절하는 것이 핵심입니다.";
-        else distText += "전반적인 오행의 흐름을 조율하여 자가 면역력을 높이는 처방이 필요합니다.";
-
-        if(maxO === 'S') {
-            res = { code: "S3R 순환정체형", therapy: "온열 40분 + 웨이브 20분", atomy: "헤모힘, 오메가3, 보이차", tea: "강한 수독을 밀어내기 위해 홍삼단의 따뜻한 성질로 속불을 지펴야 합니다.", mind: "혼자 참는 습관이 몸을 붓게 합니다. 오늘은 고민을 땀과 함께 비워내세요.", ment: "기혈의 힘으로 냉기를 몰아낼 때 진짜 순환이 시작됩니다." };
-        } else if(maxO === 'T') {
-            res = { code: "T3M 소화정체형", therapy: "온열 30분 + 웨이브 30분", atomy: "헤모힘, 유산균, 효소", tea: "생각이 많아 굳어버린 위장을 홍삼의 온기로 부드럽게 깨워줍니다.", mind: "완벽주의는 독입니다. 뇌를 쉬게 해야 위장도 편안하게 움직입니다.", ment: "속이 편안해지면 안색과 피부가 눈에 띄게 맑아집니다." };
-        } else {
-            res = { code: "체질 밸런스 조정형", therapy: "온열 40분 (기본 집중)", atomy: "헤모힘, 멀티비타민", tea: "기초 대사를 높여주는 홍삼단으로 체온 1도를 올리는 마중물을 드립니다.", mind: "내 몸을 사랑하는 시간이 운명을 바꿉니다. 긍정의 에너지를 채우세요.", ment: "무너진 면역 밸런스를 온열로 다시 견고하게 세웁니다." };
-        }
-
-        document.getElementById('res-info').innerText = `${currentCustomer.name}(${currentCustomer.gender}) / ${currentCustomer.phone}`;
-        document.getElementById('res-dist').innerText = distText;
-        document.getElementById('res-code').innerText = res.code;
-        document.getElementById('res-tea').innerText = res.tea;
-        document.getElementById('res-mind').innerHTML = res.mind;
-        document.getElementById('res-therapy').innerText = res.therapy;
-        document.getElementById('res-atomy').innerText = res.atomy;
-        document.getElementById('res-ment').innerText = res.ment;
+        document.getElementById('saju-display').innerHTML = hanjas.map(h => `<div class="saju-box"><div class="saju-char" style="color:var(--${sajuColor[h]})">${h}</div></div>`).join('');
         
-        document.getElementById('saju-hanja').innerHTML = hanjas.map(h => `<span class="saju-badge">${h}</span>`).join('');
+        document.getElementById('graph-area').innerHTML = Object.entries(counts).map(([name, count]) => {
+            const pct = (count/8)*100;
+            return `<div style="font-size:12px;">${name} (${Math.round(pct)}%)</div><div class="bar-container"><div class="bar-fill" style="width:${pct}%; background:var(--${name})"></div></div>`;
+        }).join('');
+
+        // ★ 오행 건강 멘트 자동 생성부
+        let healthMent = "";
+        const maxGi = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+        
+        if(maxGi === '수') healthMent = "💧 <b>수(水) 기운 과다:</b> 신장과 하체 순환이 약해지기 쉬운 체질입니다. 몸이 쉽게 붓고 손발이 차가워지는 수독(水毒) 정체를 주의해야 하며, 따뜻한 온열 요법이 필수적입니다.";
+        else if(maxGi === '화') healthMent = "🔥 <b>화(火) 기운 과다:</b> 심장 열감이 위로 올라와 두통이나 가슴 답답함을 유발할 수 있습니다. 상기되는 열을 아래로 내리고 심신을 안정시키는 이완 테라피가 효과적입니다.";
+        else if(maxGi === '토') healthMent = "⛰️ <b>토(土) 기운 과다:</b> 기혈 정체가 쉽게 일어나 소화 불량이나 무기력증이 올 수 있습니다. 전신 순환을 돕는 웨이브 요법으로 막힌 기운을 뚫어주는 것이 중요합니다.";
+        else if(maxGi === '목') healthMent = "🌳 <b>목(木) 기운 과다:</b> 간 기운이 뭉치기 쉬워 어깨와 목 근육이 돌처럼 딱딱해지는 경향이 있습니다. 근육 긴장을 해소하고 피로를 풀어주는 관리가 시급합니다.";
+        else healthMent = "⚔️ <b>금(金) 기운 과다:</b> 호흡기와 피부가 건조해지기 쉽고 예민한 기질을 보일 수 있습니다. 면역력을 높이고 체내 수분 밸런스를 맞추는 체온 관리가 도움됩니다.";
+
+        document.getElementById('health-ment').innerHTML = healthMent;
+        document.getElementById('res-code').innerText = maxGi === '수' ? "S3R 순환정체형" : "체질 밸런스 조정형";
+        document.getElementById('res-tea').innerText = "심부 온도를 높여주는 홍삼단 온수 처방";
+        document.getElementById('res-ment').innerText = `위상각 ${document.getElementById('phaseAngle').value}°를 고려한 맞춤 테라피 제안`;
         document.getElementById('final-report').style.display = 'block';
     }
 </script>
