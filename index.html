@@ -3,170 +3,268 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>천일도+ v7.0 최종완성</title>
+    <title>천일도+ v9.1 전문 상담 시스템</title>
+
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
+
     <style>
-        :root { --primary: #2c3e50; --secondary: #3498db; --목: #27ae60; --화: #e74c3c; --토: #f39c12; --금: #7f8c8d; --수: #2980b9; }
-        body { font-family: 'Noto Sans KR', sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
-        nav { background: var(--primary); color: white; padding: 15px; display: flex; gap: 10px; justify-content: center; position: sticky; top: 0; z-index: 1000; }
-        .nav-item { cursor: pointer; padding: 12px 20px; border-radius: 8px; font-weight: bold; }
-        .nav-item.active { background: var(--secondary); }
-        .container { max-width: 800px; margin: 20px auto; padding: 0 15px; }
-        .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        /* [3. 디자인 설정] 오행별 고유 색상 및 배경 설정 */
+        :root { 
+            --primary: #4f46e5; 
+            --bg: #f8fafc; 
+            --목: #10b981; /* 초록 */
+            --화: #ef4444; /* 빨강 */
+            --토: #f59e0b; /* 노랑 */
+            --금: #64748b; /* 회색 */
+            --수: #2563eb; /* 파랑 */
+        }
+
+        body { 
+            font-family: 'Pretendard', sans-serif; 
+            background-color: var(--bg); 
+            margin: 0; padding: 0; 
+        }
+
+        /* 상단 탭 메뉴 */
+        nav { 
+            background: #ffffff; 
+            display: flex; 
+            justify-content: space-around; 
+            padding: 10px; 
+            position: sticky; 
+            top: 0; 
+            z-index: 1000; 
+            box-shadow: 0 1px 5px rgba(0,0,0,0.1); 
+        }
+
+        .nav-item { 
+            cursor: pointer; 
+            padding: 12px 25px; 
+            border-radius: 12px; 
+            font-weight: 600; 
+            color: #64748b; 
+        }
+
+        .nav-item.active { 
+            background: var(--primary); 
+            color: #ffffff; 
+        }
+
+        /* 컨텐츠 박스 */
+        .container { max-width: 600px; margin: 20px auto; padding: 0 16px; }
+        .card { 
+            background: #ffffff; 
+            border-radius: 20px; 
+            padding: 24px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            margin-bottom: 20px; 
+        }
+
+        /* 입력창 디자인 */
+        input, select { 
+            width: 100%; 
+            padding: 14px; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 12px; 
+            margin-bottom: 15px; 
+            font-size: 16px; 
+            box-sizing: border-box; 
+        }
+
+        /* 버튼 디자인 */
+        .btn { 
+            border: none; 
+            padding: 18px; 
+            border-radius: 15px; 
+            font-weight: 700; 
+            font-size: 16px; 
+            width: 100%; 
+            cursor: pointer; 
+        }
+
+        .btn-main { background: var(--primary); color: white; }
+
+        /* 사주 만세력 카드 */
+        .saju-grid { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 10px; 
+            margin: 20px 0; 
+        }
+
+        .saju-item { 
+            background: #f1f5f9; 
+            padding: 12px; 
+            border-radius: 15px; 
+            text-align: center; 
+        }
+
+        .saju-char { font-size: 26px; font-weight: 700; display: block; margin: 5px 0; }
+
+        /* 오행 그래프 */
+        .bar-wrap { margin-bottom: 12px; }
+        .bar-label { display: flex; justify-content: space-between; font-weight: 600; font-size: 14px; }
+        .bar-bg { background: #e2e8f0; height: 12px; border-radius: 10px; overflow: hidden; margin-top: 5px; }
+        .bar-fill { height: 100%; transition: width 1s; }
+
+        /* 화면 전환용 */
         .view-section { display: none; }
         .view-section.active { display: block; }
-        h2 { border-left: 5px solid var(--secondary); padding-left: 10px; font-size: 18px; margin-bottom: 15px; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box; }
-        .btn { border: none; padding: 15px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; }
-        .btn-blue { background: var(--secondary); color: white; }
-        .btn-list { background: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 8px; border-radius: 10px; width: 100%; text-align: left; display: flex; justify-content: space-between; cursor: pointer; }
-        /* 사주/그래프 디자인 */
-        .saju-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0; }
-        .saju-box { background: #f8f9fa; border: 1px solid #eee; border-radius: 10px; padding: 10px; text-align: center; }
-        .saju-char { font-size: 24px; font-weight: bold; display: block; margin: 5px 0; }
-        .bar-bg { background: #eee; border-radius: 10px; height: 12px; margin-bottom: 10px; }
-        .bar-fill { height: 100%; border-radius: 10px; transition: width 0.5s; }
-        .result-box { background: white; padding: 25px; border-radius: 15px; border: 2px solid #333; display: none; margin-top: 20px; }
-        @media print { .no-print { display: none; } .result-box { display: block !important; border: 1px solid #000; } }
+
+        @media print { .no-print { display: none !important; } }
     </style>
 </head>
 <body>
 
-<nav class="no-print">
-    <div class="nav-item active" id="t-reg" onclick="showTab('register')">1. 고객접수</div>
-    <div class="nav-item" id="t-con" onclick="showTab('consult')">2. 전문상담</div>
-</nav>
+    <nav class="no-print">
+        <div class="nav-item active" id="tab-reg" onclick="showTab('register')">고객접수</div>
+        <div class="nav-item" id="tab-con" onclick="showTab('consult')">전문상담</div>
+    </nav>
 
-<div class="container">
-    <section id="register" class="view-section active">
-        <div class="card">
-            <h2>고객 정보 등록</h2>
-            <input type="text" id="name" placeholder="성함 입력">
-            <select id="gender"><option value="여">여성</option><option value="남">남성</option></select>
-            <input type="tel" id="phone" placeholder="전화번호">
-            <input type="text" id="saju_input" placeholder="사주 8글자 (예: 신해 기해 임인 기유)">
-            <select id="symp"><option value="일반">불편한 곳 선택</option><option>목/어깨</option><option>허리</option><option>소화</option><option>냉증</option></select>
-            <button class="btn btn-blue" onclick="saveData()">데이터 전송 및 저장</button>
-        </div>
-        <div class="card">
-            <h2>실시간 접수 목록 (전송 확인용)</h2>
-            <div id="reg-check-list" style="font-size: 14px; color: #666;">데이터를 전송하면 여기에 바로 나타납니다.</div>
-        </div>
-    </section>
+    <div class="container">
+        <section id="register" class="view-section active">
+            <div class="card">
+                <h2>1. 기초 정보</h2>
+                <input type="text" id="name" placeholder="성함">
+                <select id="gender"><option value="여">여성</option><option value="남">남성</option></select>
+                <input type="tel" id="phone" placeholder="전화번호">
+                <input type="text" id="saju_in" placeholder="사주(띄어쓰기 예: 신해 기해 임인 기유)">
 
-    <section id="consult" class="view-section">
-        <div class="card no-print">
-            <h2>상담 고객 선택</h2>
-            <div id="consult-list"></div>
-        </div>
-        <div id="input-area" class="card no-print" style="display:none;">
-            <h2 id="targetName">인바디 지표 입력</h2>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                <input type="number" id="w" placeholder="체중">
-                <input type="number" id="pa" placeholder="위상각">
-                <input type="number" id="f" placeholder="체지방">
-                <input type="number" id="wa" placeholder="체수분">
+                <hr style="border:0; border-top:1px solid #eee; margin: 20px 0;">
+                
+                <h2>2. 체질 문진</h2>
+                <label>어깨/목 근육이 자주 뭉치시나요?</label>
+                <select id="w_val"><option value="1">전혀 아님</option><option value="3" selected>보통</option><option value="5">매우 심함</option></select>
+                <label>얼굴로 열이 오르거나 가슴이 두근거리시나요?</label>
+                <select id="h_val"><option value="1">전혀 아님</option><option value="3" selected>보통</option><option value="5">매우 심함</option></select>
+                <label>소화가 안 되거나 생각이 많으신가요?</label>
+                <select id="t_val"><option value="1">전혀 아님</option><option value="3" selected>보통</option><option value="5">매우 심함</option></select>
+
+                <button class="btn btn-main" onclick="saveCustomer()">데이터 전송 완료</button>
             </div>
-            <button class="btn btn-blue" onclick="makeReport()">분석 결과 보기</button>
-        </div>
 
-        <div id="report" class="result-box">
-            <h1 style="text-align:center; font-size:22px;">체질 분석 리포트</h1>
-            <p id="p-info" style="text-align:center; font-weight:bold; border-bottom:1px solid #eee; padding-bottom:10px;"></p>
-            <div class="saju-grid" id="saju-res"></div>
-            <div id="graph-res"></div>
-            <div id="ment-res" style="background:#f0f7ff; padding:15px; border-radius:10px; margin-top:15px; line-height:1.6;"></div>
-            <div id="atomy-res" style="background:#fff5f5; border:1px solid #feb2b2; padding:15px; border-radius:10px; margin-top:10px; font-weight:bold; color:var(--화);"></div>
-            <button class="btn no-print" onclick="window.print()" style="background:#999; color:#white; margin-top:20px;">인쇄하기</button>
-        </div>
-    </section>
-</div>
+            <div class="card">
+                <h2>접수 현황 (방금 전송된 목록)</h2>
+                <div id="recent-list-reg"></div>
+            </div>
+        </section>
+
+        <section id="consult" class="view-section">
+            <div class="card no-print">
+                <h2>상담할 고객 선택</h2>
+                <div id="recent-list-con"></div>
+            </div>
+
+            <div id="inbody-card" class="card no-print" style="display:none;">
+                <h2 id="target-title">인바디 지표 입력</h2>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <input type="number" id="weight" placeholder="체중">
+                     <input type="number" id="pa" placeholder="지방량">
+                     <input type="number" id="pa" placeholder="체수분">
+                    <input type="number" id="pa" placeholder="근육량">
+                </div>
+                <button class="btn btn-main" onclick="createReport()">분석 리포트 발행</button>
+            </div>
+
+            <div id="report" class="card" style="display:none;">
+                <h1 style="text-align:center; font-size: 22px;">체질 분석 리포트</h1>
+                <div class="saju-grid" id="res-saju"></div>
+                <div id="res-graph"></div>
+                <div id="res-ment" style="background:#f1f5f9; padding:15px; border-radius:12px; margin-top:20px; line-height:1.6;"></div>
+                <button class="btn btn-main no-print" onclick="window.print()" style="margin-top:20px; background:#64748b;">인쇄하기</button>
+            </div>
+        </section>
+    </div>
 
 <script>
+    // [4. 설정] 파이어베이스 정보
     const firebaseConfig = { apiKey: "AIzaSyAUucRqU8nciqkINbjZcUUHx3UkR_OOprs", authDomain: "cheon1do-plus.firebaseapp.com", projectId: "cheon1do-plus", storageBucket: "cheon1do-plus.firebasestorage.app", messagingSenderId: "344900999016", appId: "1:344900999016:web:a20ef3b01df68ca03928dd" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-    let selectedUser = null;
+    let currentC = null;
 
-    function showTab(n) {
+    // [5. 기능] 화면 탭 전환
+    function showTab(t) {
         document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-        document.getElementById(n).classList.add('active');
-        document.getElementById(n === 'register' ? 't-reg' : 't-con').classList.add('active');
-        if(n === 'consult') loadList('consult-list');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById(t).classList.add('active');
+        document.getElementById(t==='register'?'tab-reg':'tab-con').classList.add('active');
+        loadLists();
     }
 
-    async function saveData() {
+    // [6. 기능] 데이터 저장 및 팝업
+    async function saveCustomer() {
         const name = document.getElementById('name').value;
-        const saju = document.getElementById('saju_input').value;
-        if(!name || !saju) return alert("성함과 사주를 입력하세요.");
-        const data = { name, saju, gender: document.getElementById('gender').value, symp: document.getElementById('symp').value, date: new Date() };
-        await db.collection("clients").add(data);
-        alert("✅ " + name + "님 접수 완료!");
-        loadList('reg-check-list'); // 접수 탭 목록 갱신
-        document.getElementById('name').value = "";
-        document.getElementById('saju_input').value = "";
+        const saju = document.getElementById('saju_in').value;
+        if(!name || !saju) return alert("성함과 사주를 입력해주세요.");
+
+        await db.collection("clients").add({
+            name, saju,
+            gender: document.getElementById('gender').value,
+            scores: { W: document.getElementById('w_val').value, H: document.getElementById('h_val').value, T: document.getElementById('t_val').value },
+            date: new Date()
+        });
+
+        alert("✅ " + name + "님 접수 완료! 상담실로 이동하세요.");
+        showTab('consult');
     }
 
-    async function loadList(id) {
+    // [7. 기능] 목록 불러오기
+    async function loadLists() {
         const snap = await db.collection("clients").orderBy("date", "desc").limit(5).get();
-        const div = document.getElementById(id);
-        div.innerHTML = "";
+        const regDiv = document.getElementById('recent-list-reg');
+        const conDiv = document.getElementById('recent-list-con');
+        regDiv.innerHTML = ""; conDiv.innerHTML = "";
+
         snap.forEach(doc => {
             const d = doc.data();
-            const b = document.createElement('div');
-            b.className = "btn-list";
-            b.innerHTML = `<span>${d.name}(${d.gender})</span> <span>${d.date.toDate().toLocaleTimeString()}</span>`;
-            if(id === 'consult-list') {
-                b.onclick = () => {
-                    selectedUser = d;
-                    document.getElementById('input-area').style.display = 'block';
-                    document.getElementById('report').style.display = 'none';
-                    document.getElementById('targetName').innerText = d.name + "님 지표 입력";
-                };
-            }
-            div.appendChild(b);
+            const item = document.createElement('div');
+            item.style.cssText = "padding:12px; border-bottom:1px solid #eee; cursor:pointer;";
+            item.innerHTML = `<strong>${d.name}</strong> (${d.gender}) - ${d.date.toDate().toLocaleTimeString()}`;
+            
+            regDiv.appendChild(item.cloneNode(true));
+            
+            item.onclick = () => {
+                currentC = d;
+                document.getElementById('inbody-card').style.display = 'block';
+                document.getElementById('target-title').innerText = d.name + "님 분석 시작";
+            };
+            conDiv.appendChild(item);
         });
     }
 
+    // [8. 설정] 사주 색상 지도
     const sMap = { '신':'辛','해':'亥','기':'己','임':'壬','인':'寅','유':'酉','자':'子','축':'丑','병':'丙','정':'丁','무':'戊','경':'庚','을':'乙','갑':'甲','계':'癸','미':'未','술':'戌','진':'辰','사':'巳','오':'午','묘':'卯' };
-    const sCol = { '辛':'금','庚':'금','酉':'금','申':'금','壬':'수','癸':'수','亥':'수','子':'수','甲':'목','乙':'목','寅':'목','卯':'목','丙':'화','丁':'화','巳':'화','午':'화','戊':'토','己':'토','辰':'토','戌':'토','축':'토','미':'토' };
+    const cMap = { '辛':'금','庚':'금','酉':'금','申':'금','壬':'수','癸':'수','亥':'수','子':'수','甲':'목','乙':'목','寅':'목','卯':'목','丙':'화','丁':'화','巳':'화','午':'화','戊':'토','己':'토','辰':'토','戌':'토','丑':'토','미':'토' };
 
-    function makeReport() {
-        if(!selectedUser) return;
-        const hanjas = selectedUser.saju.split(' ').map(k => sMap[k] || k);
+    // [9. 기능] 리포트 생성 및 오행 분석
+    function createReport() {
+        const hanjas = currentC.saju.split(' ').map(k => sMap[k] || k);
         const counts = { '목':0, '화':0, '토':0, '금':0, '수':0 };
-        hanjas.forEach(h => { if(sCol[h]) counts[sCol[h]]++; });
+        hanjas.forEach(h => { if(cMap[h]) counts[cMap[h]]++; });
 
-        document.getElementById('p-info').innerText = `${selectedUser.name} (${selectedUser.gender}) | 불편: ${selectedUser.symp}`;
-        
         // 사주 카드 출력
-        const labels = ['시주','일주','월주','년주'];
-        document.getElementById('saju-res').innerHTML = labels.map((l, i) => `
-            <div class="saju-box"><small>${l}</small>
-                <span class="saju-char" style="color:var(--${sCol[hanjas[i*2]]})">${hanjas[i*2]||''}</span>
-                <span class="saju-char" style="color:var(--${sCol[hanjas[i*2+1]]})">${hanjas[i*2+1]||''}</span>
+        document.getElementById('res-saju').innerHTML = hanjas.map(h => `
+            <div class="saju-item">
+                <span class="saju-char" style="color:var(--${cMap[h]})">${h}</span>
+                <small>${cMap[h]}</small>
             </div>`).join('');
 
-        // 그래프 출력
-        document.getElementById('graph-res').innerHTML = Object.entries(counts).map(([n, c]) => `
-            <div style="display:flex; justify-content:space-between; font-size:12px;"><span>${n}</span><span>${c}개</span></div>
-            <div class="bar-bg"><div class="bar-fill" style="width:${(c/8)*100}%; background:var(--${n})"></div></div>
-        `).join('');
+        // 오행 그래프 출력
+        document.getElementById('res-graph').innerHTML = Object.entries(counts).map(([n, c]) => `
+            <div class="bar-wrap">
+                <div class="bar-label"><span>${n} 기운</span><span>${c}개</span></div>
+                <div class="bar-bg"><div class="bar-fill" style="width:${(c/8)*100}%; background:var(--${n})"></div></div>
+            </div>`).join('');
 
-        const max = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
-        const tips = { '수': "수(水) 기운 과다: 하체 부종과 냉증 주의. 심부 온열 요법 필수.", '화': "화(火) 기운 과다: 심장 열감 및 상열감 주의. 혈행 개선 관리.", '토': "토(土) 기운 과다: 소화기 정체 및 무기력 주의. 효소 섭취 권장.", '목': "목(木) 기운 과다: 간 피로 및 근육 경직 주의. 스트레칭과 해독.", '금': "금(金) 기운 과다: 호흡기 및 피부 건조 주의. 면역력 강화." };
-        const atoms = { '수': "추천: 헤모힘, 홍삼단, 보이차", '화': "추천: 오메가3, 락티움", '토': "추천: 파인자임, 차전자피", '목': "추천: 밀크씨슬, 비타민B", '금': "추천: 노니, 비타민C" };
-
-        document.getElementById('ment-res').innerHTML = `<b>체질 분석 결과:</b><br>${tips[max]}<br><br>위상각 ${document.getElementById('pa').value}°는 세포 건강의 지표입니다. 꾸준한 온열 관리가 필요합니다.`;
-        document.getElementById('atomy-res').innerText = "💊 애터미 맞춤 처방: " + atoms[max];
         document.getElementById('report').style.display = 'block';
+        document.getElementById('res-ment').innerHTML = `<b>전문가 소견:</b> 사주에 ${cMap[hanjas[2]]} 기운이 강하시네요. 위상각 ${document.getElementById('pa').value}° 지표를 보니 온열 관리가 필요합니다.`;
     }
-    
-    // 초기 목록 로드
-    window.onload = () => loadList('reg-check-list');
+
+    window.onload = loadLists;
 </script>
 </body>
 </html>
